@@ -20,7 +20,7 @@ import {
 import { Slider } from "@/app/components/ui/slider";
 import { Switch } from "@/app/components/ui/switch";
 import { useIsMobile } from "@/app/hooks/use-mobile";
-import { MAP_CONFIG } from "@/app/map/map-config";
+import { MAP_CONFIG } from "@/app/map/config/map-config";
 import { Layers } from "lucide-react";
 import { useTocStore } from "./toc-store";
 

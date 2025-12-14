@@ -1,10 +1,10 @@
 // app/map/core/map-instance.ts
 
-import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 import maplibregl, {
-  type LngLatLike,
-  type Map as MaplibreMap,
+	type LngLatLike,
+	type Map as MaplibreMap,
 } from "maplibre-gl";
+import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 
 type CreateMapOptions = {
 	container: HTMLDivElement;

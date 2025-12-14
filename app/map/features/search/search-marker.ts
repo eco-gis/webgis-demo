@@ -1,4 +1,8 @@
-import type { LayerSpecification, Map as MaplibreMap, SourceSpecification } from "maplibre-gl";
+import type {
+	LayerSpecification,
+	Map as MaplibreMap,
+	SourceSpecification,
+} from "maplibre-gl";
 
 export const SEARCH_MARKER_SOURCE_ID = "search-marker";
 

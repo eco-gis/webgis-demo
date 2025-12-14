@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-	title: "Mini WebGIS",
+	title: "Demo WebGIS - eco|gis",
 };
 
 export default function RootLayout({

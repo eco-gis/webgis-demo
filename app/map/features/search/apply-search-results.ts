@@ -1,5 +1,5 @@
-import type { GeocodingFeature } from "@/app/lib/maptiler/geocoding";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import type { GeocodingFeature } from "@/app/lib/maptiler/geocoding";
 import { SEARCH_MARKER_SOURCE_ID } from "./search-marker";
 
 type GeoJSONPoint = {

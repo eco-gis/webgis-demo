@@ -1,3 +1,4 @@
+// app/map/features/sidebar/map-sidebar.tsx
 "use client";
 
 import {
@@ -7,7 +8,6 @@ import {
 	AccordionTrigger,
 } from "@/app/components/ui/accordion";
 import { Checkbox } from "@/app/components/ui/checkbox";
-import { Separator } from "@/app/components/ui/separator";
 import {
 	Sidebar,
 	SidebarContent,
@@ -16,42 +16,29 @@ import {
 	SidebarGroupLabel,
 } from "@/app/components/ui/sidebar";
 import { Slider } from "@/app/components/ui/slider";
-import { BasemapGallery } from "@/app/map/basemaps/basemap-gallery";
-import { useBasemapStore } from "@/app/map/basemaps/basemap-store";
-import { useBasemapSync } from "@/app/map/basemaps/use-basemap-sync";
-import { SearchPanel } from "@/app/map/features/search/search-panel";
+import { MAP_CONFIG } from "@/app/map/config/map-config";
+import { useDrawing } from "@/app/map/features/drawing/use-drawing";
+import { LegendPanel } from "@/app/map/features/legend/legend-panel";
 import { useTocStore } from "@/app/map/features/toc/toc-store";
-import { MAP_CONFIG } from "@/app/map/map-config";
-import { Blend, Layers, Map as MapIcon, Search, Tag } from "lucide-react";
+import type {
+	TocItemConfig,
+	TocItemId,
+} from "@/app/map/features/toc/toc-types";
+import {
+	ArrowRight,
+	Ban,
+	Blend,
+	Layers,
+	List,
+	MapPin,
+	Minus,
+	MousePointer2,
+	PenLine,
+	Pentagon,
+	Tag,
+	Trash2,
+} from "lucide-react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-
-function LegendSwatch({
-	kind,
-	value,
-}: {
-	kind: "fill" | "line" | "circle";
-	value: string;
-}) {
-	if (kind === "circle") {
-		return (
-			<span
-				className="h-3 w-3 rounded-full"
-				style={{ backgroundColor: value }}
-			/>
-		);
-	}
-	if (kind === "line") {
-		return (
-			<span className="h-0.5 w-6 rounded" style={{ backgroundColor: value }} />
-		);
-	}
-	return (
-		<span
-			className="h-3 w-6 rounded-sm"
-			style={{ backgroundColor: value, opacity: 0.6 }}
-		/>
-	);
-}
 
 function TocPanel() {
 	const visible = useTocStore((s) => s.visible);
@@ -61,23 +48,27 @@ function TocPanel() {
 	const setLabelsVisible = useTocStore((s) => s.setLabelsVisible);
 	const setOpacity = useTocStore((s) => s.setOpacity);
 
+	const tocItems = MAP_CONFIG.tocItems as readonly TocItemConfig[];
+
 	return (
 		<div className="space-y-2">
-			{MAP_CONFIG.tocItems.map((item) => {
-				const isOn = visible[item.id] ?? item.defaultVisible;
-				const labelsOn = labelsVisible[item.id] ?? item.defaultLabelsVisible;
-				const op = opacity[item.id] ?? item.defaultOpacity;
+			{tocItems.map((item) => {
+				const id = item.id as TocItemId;
+
+				const isOn = visible[id] ?? item.defaultVisible;
+				const labelsOn = labelsVisible[id] ?? item.defaultLabelsVisible;
+				const op = opacity[id] ?? item.defaultOpacity;
 
 				return (
 					<div
-						key={item.id}
+						key={id}
 						className="rounded-md border border-sidebar-border bg-sidebar p-2"
 					>
 						<div className="flex items-center justify-between gap-2">
 							<div className="flex items-center gap-2 text-sm">
 								<Checkbox
 									checked={isOn}
-									onCheckedChange={(v) => setVisible(item.id, v === true)}
+									onCheckedChange={(v) => setVisible(id, v === true)}
 								/>
 								<span className="select-none">{item.title}</span>
 							</div>
@@ -89,8 +80,8 @@ function TocPanel() {
 									disabled={!isOn}
 									onClick={() =>
 										setLabelsVisible(
-											item.id,
-											!(labelsVisible[item.id] ?? item.defaultLabelsVisible),
+											id,
+											!(labelsVisible[id] ?? item.defaultLabelsVisible),
 										)
 									}
 									title="Labels"
@@ -113,7 +104,7 @@ function TocPanel() {
 							<Slider
 								value={[op]}
 								onValueChange={(v) =>
-									setOpacity(item.id, v[0] ?? item.defaultOpacity)
+									setOpacity(id, v[0] ?? item.defaultOpacity)
 								}
 								min={0}
 								max={1}
@@ -128,48 +119,19 @@ function TocPanel() {
 	);
 }
 
-function LegendPanel() {
-	const visible = useTocStore((s) => s.visible);
-	const items = MAP_CONFIG.tocItems.filter(
-		(i) => (visible[i.id] ?? i.defaultVisible) && i.legend?.length,
-	);
-	if (items.length === 0) {
-		return (
-			<div className="text-xs text-muted-foreground">
-				Keine sichtbaren Layer mit Legende.
-			</div>
-		);
-	}
-
-	return (
-		<div className="space-y-4">
-			{items.map((item, idx) => (
-				<div key={item.id} className="space-y-2">
-					<div className="text-xs font-medium">{item.title}</div>
-					<div className="space-y-1">
-						{(item.legend ?? []).map((li) => (
-							<div key={li.label} className="flex items-center gap-2 text-xs">
-								<LegendSwatch kind={li.swatch.kind} value={li.swatch.value} />
-								<span className="text-muted-foreground">{li.label}</span>
-							</div>
-						))}
-					</div>
-					{idx < items.length - 1 && <Separator />}
-				</div>
-			))}
-		</div>
-	);
-}
-
 export function AppSidebar({ map }: { map: MaplibreMap | null }) {
-	const { basemapId, setBasemapId, isHydrated } =
-		useBasemapStore("swisstopo-lbm");
-
-	// sorgt dafür, dass beim Wechsel der Basemap der Style gesetzt wird
-	useBasemapSync({ map, basemapId });
+	const drawing = useDrawing(map);
 
 	return (
-		<Sidebar collapsible="offcanvas">
+		<Sidebar
+			collapsible="offcanvas"
+			style={
+				{
+					"--sidebar-width": "360px",
+					"--sidebar-width-mobile": "320px",
+				} as React.CSSProperties
+			}
+		>
 			<SidebarContent>
 				<SidebarGroup>
 					<SidebarGroupLabel className="flex items-center gap-2">
@@ -180,48 +142,166 @@ export function AppSidebar({ map }: { map: MaplibreMap | null }) {
 					<SidebarGroupContent className="pt-2">
 						<Accordion
 							type="multiple"
-							defaultValue={["search", "basemap", "toc"]}
+							defaultValue={["legend"]}
 							className="w-full"
 						>
-							<AccordionItem value="search">
-								<AccordionTrigger className="gap-2">
-									<span className="inline-flex items-center gap-2">
-										<Search className="h-4 w-4" />
-										Suche
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="pt-2">
-									<SearchPanel map={map} />
-								</AccordionContent>
-							</AccordionItem>
-
-							<AccordionItem value="basemap">
-								<AccordionTrigger className="gap-2">
-									<span className="inline-flex items-center gap-2">
-										<MapIcon className="h-4 w-4" />
-										Basemap
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="pt-2">
-									<BasemapGallery
-										value={basemapId}
-										onChange={setBasemapId}
-										hydrated={isHydrated}
-									/>{" "}
-								</AccordionContent>
-							</AccordionItem>
-
 							<AccordionItem value="toc">
-								<AccordionTrigger>Karteninhalt</AccordionTrigger>
+								<AccordionTrigger className="gap-2">
+									<span className="inline-flex items-center gap-2">
+										<Layers className="h-4 w-4" />
+										Karteninhalt
+									</span>
+								</AccordionTrigger>
 								<AccordionContent className="pt-2">
 									<TocPanel />
 								</AccordionContent>
 							</AccordionItem>
 
 							<AccordionItem value="legend">
-								<AccordionTrigger>Legende</AccordionTrigger>
+								<AccordionTrigger className="gap-2">
+									<span className="inline-flex items-center gap-2">
+										<List className="h-4 w-4" />
+										Legende
+									</span>
+								</AccordionTrigger>
 								<AccordionContent className="pt-2">
-									<LegendPanel />
+									{/* ✅ echte dynamische Legende */}
+									<LegendPanel map={map} />
+								</AccordionContent>
+							</AccordionItem>
+
+							<AccordionItem value="drawing">
+								<AccordionTrigger className="gap-2">
+									<span className="inline-flex items-center gap-2">
+										<PenLine className="h-4 w-4" />
+										Zeichnen
+									</span>
+								</AccordionTrigger>
+
+								<AccordionContent className="space-y-3 pt-2">
+									<div className="grid grid-cols-2 gap-2">
+										<button
+											type="button"
+											className={[
+												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
+												drawing.mode === "select"
+													? "border-primary bg-primary/10"
+													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
+											].join(" ")}
+											onClick={() => drawing.setMode("select")}
+											title="Select / Aus"
+										>
+											<MousePointer2 className="h-4 w-4" />
+											Aus
+										</button>
+
+										<button
+											type="button"
+											className={[
+												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
+												drawing.mode === "point"
+													? "border-primary bg-primary/10"
+													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
+											].join(" ")}
+											onClick={() => drawing.setMode("point")}
+											title="Punkt setzen"
+										>
+											<MapPin className="h-4 w-4" />
+											Punkt
+										</button>
+
+										<button
+											type="button"
+											className={[
+												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
+												drawing.mode === "line"
+													? "border-primary bg-primary/10"
+													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
+											].join(" ")}
+											onClick={() => drawing.setMode("line")}
+											title="Linie zeichnen"
+										>
+											<Minus className="h-4 w-4" />
+											Linie
+										</button>
+
+										<button
+											type="button"
+											className={[
+												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
+												drawing.mode === "polygon"
+													? "border-primary bg-primary/10"
+													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
+											].join(" ")}
+											onClick={() => drawing.setMode("polygon")}
+											title="Polygon zeichnen"
+										>
+											<Pentagon className="h-4 w-4" />
+											Polygon
+										</button>
+
+										<button
+											type="button"
+											className={[
+												"col-span-2 inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
+												drawing.mode === "arrow"
+													? "border-primary bg-primary/10"
+													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
+											].join(" ")}
+											onClick={() => drawing.setMode("arrow")}
+											title="Pfeil zeichnen"
+										>
+											<ArrowRight className="h-4 w-4" />
+											Pfeil
+										</button>
+									</div>
+
+									{drawing.mode === "point" && (
+										<div className="space-y-1">
+											<div className="text-xs text-muted-foreground">
+												Label (nur Punkt)
+											</div>
+											<input
+												className="h-9 w-full rounded-md border border-sidebar-border bg-sidebar px-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+												placeholder="z.B. Brutplatz A"
+												onChange={(e) => drawing.setLabel(e.target.value)}
+											/>
+										</div>
+									)}
+
+									<div className="text-[11px] leading-snug text-muted-foreground">
+										{drawing.mode === "point" && "Klick setzt Punkt."}
+										{(drawing.mode === "line" ||
+											drawing.mode === "polygon" ||
+											drawing.mode === "arrow") &&
+											"Mehrere Klicks, dann Doppelklick oder Enter zum Abschliessen. Esc bricht ab."}
+										{drawing.mode === "select" &&
+											"Werkzeug wählen, um zu zeichnen."}
+									</div>
+
+									<div className="flex items-center gap-2">
+										<button
+											type="button"
+											className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs hover:bg-sidebar/80 disabled:opacity-50"
+											onClick={() => drawing.cancel()}
+											disabled={!drawing.hasSketch}
+											title="Aktuelle Skizze verwerfen"
+										>
+											<Ban className="h-4 w-4" />
+											Abbrechen
+										</button>
+
+										<button
+											type="button"
+											className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs hover:bg-sidebar/80 disabled:opacity-50"
+											onClick={() => drawing.clearAll()}
+											disabled={!drawing.hasFeatures && !drawing.hasSketch}
+											title="Alles löschen"
+										>
+											<Trash2 className="h-4 w-4" />
+											Löschen
+										</button>
+									</div>
 								</AccordionContent>
 							</AccordionItem>
 						</Accordion>

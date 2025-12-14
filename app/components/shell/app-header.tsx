@@ -1,11 +1,19 @@
-// app/components/shell/app-header.tsx
 "use client";
+
+import { Menu } from "lucide-react";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { SidebarTrigger } from "@/app/components/ui/sidebar";
 import { cn } from "@/app/lib/utils";
-import { Menu } from "lucide-react";
+import { SearchHeader } from "@/app/map/features/search/search-header";
 
-export function AppHeader({ className }: { className?: string }) {
+export function AppHeader({
+	map,
+	className,
+}: {
+	map: MaplibreMap | null;
+	className?: string;
+}) {
 	return (
 		<header
 			className={cn(
@@ -22,6 +30,10 @@ export function AppHeader({ className }: { className?: string }) {
 				</SidebarTrigger>
 
 				<div className="text-sm font-medium">Mini WebGIS</div>
+			</div>
+
+			<div className="flex items-center gap-2">
+				<SearchHeader map={map} />
 			</div>
 		</header>
 	);

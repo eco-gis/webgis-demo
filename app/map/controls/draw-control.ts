@@ -25,9 +25,7 @@ export class DrawControl {
 	private render() {
 		if (!this._container) return;
 		this._container.innerHTML = `
-      <button class="eco-ctrl-btn ${
-				this.active() ? "eco-btn-active" : ""
-			}">✏️</button>
+      <button class="eco-ctrl-btn ${this.active() ? "eco-btn-active" : ""}">✏️</button>
     `;
 	}
 

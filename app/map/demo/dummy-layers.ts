@@ -129,12 +129,24 @@ export const DUMMY_LAYERS_ALL: LayerSpecification[] = [
 			"circle-radius": 6,
 			"circle-color": [
 				"match",
-				["get", "category"],
-				"A",
+				["get", "Art"],
+				"Hausrotschwanz",
 				"#dc2626",
-				"B",
+				"Rotkelchen",
 				"#ea580c",
+				"Gartenbaumläufer",
+				"#16a34a",
+				"Buntspecht",
+				"#2563eb",
+				"Eichelhäher",
+				"#7c3aed",
+				"Amsel",
+				"#0f172a",
+				"Haussperling",
 				"#6b7280",
+				"Turmfalke",
+				"#f59e0b",
+				"#6b7280", // fallback
 			],
 			"circle-stroke-width": 1,
 			"circle-stroke-color": "#ffffff",
@@ -148,7 +160,7 @@ export const DUMMY_LAYERS_ALL: LayerSpecification[] = [
 		source: DUMMY_POINTS_SOURCE_ID,
 		filter: ["!", ["has", "point_count"]],
 		layout: {
-			"text-field": ["get", "name"],
+			"text-field": ["get", "Art"], // <-- statt name
 			"text-offset": [0, 1.2],
 			"text-size": 11,
 			"text-allow-overlap": true,
@@ -156,6 +168,9 @@ export const DUMMY_LAYERS_ALL: LayerSpecification[] = [
 		},
 		paint: {
 			"text-color": "#111827",
+			"text-halo-color": "#ffffff",
+			"text-halo-width": 2,
+			"text-halo-blur": 0.5,
 		},
 	},
 ] as const;

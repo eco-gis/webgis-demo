@@ -1,3 +1,5 @@
+// app/map/map-config.ts
+
 import { DEMO_INTERACTIVE_LAYER_IDS } from "@/app/map/demo/demo-interactive-layer-ids";
 import { DEMO_OVERLAYS } from "@/app/map/demo/demo-overlays";
 import { DEMO_TOC_ITEMS } from "@/app/map/demo/demo-toc-items";

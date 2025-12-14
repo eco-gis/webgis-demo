@@ -1,7 +1,7 @@
 "use client";
 
-import { type GeocodingFeature, geocode } from "@/app/lib/maptiler/geocoding";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { type GeocodingFeature, geocode } from "@/app/lib/maptiler/geocoding";
 
 export type UseGeocodingSearchState = {
 	query: string;

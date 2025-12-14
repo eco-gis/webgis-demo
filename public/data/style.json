@@ -45,6 +45,7 @@
 				]
 			}
 		},
+
 		{
 			"id": "dummy-lines",
 			"type": "line",
@@ -55,7 +56,19 @@
 				"line-join": "round"
 			},
 			"paint": {
-				"line-color": "#1976D2",
+				"line-color": [
+					"interpolate",
+					["linear"],
+					["coalesce", ["get", "abfluss"], 0],
+					0,
+					"#60a5fa",
+					50,
+					"#2563eb",
+					200,
+					"#1d4ed8",
+					350,
+					"#1e3a8a"
+				],
 				"line-width": [
 					"interpolate",
 					["linear"],
@@ -120,6 +133,7 @@
 				"text-color": "#ffffff"
 			}
 		},
+
 		{
 			"id": "dummy-points",
 			"type": "circle",
@@ -139,11 +153,21 @@
 				],
 				"circle-color": [
 					"match",
-					["get", "category"],
-					"A",
+					["get", "Art"],
+					"Hausrotschwanz",
 					"#dc2626",
-					"B",
+					"Rotkelchen",
 					"#ea580c",
+					"Gartenbaumläufer",
+					"#16a34a",
+					"Buntspecht",
+					"#2563eb",
+					"Eichelhäher",
+					"#7c3aed",
+					"Amsel",
+					"#0f766e",
+					"Haussperling",
+					"#a16207",
 					"#6b7280"
 				],
 				"circle-opacity": 0.95,
@@ -157,7 +181,7 @@
 			"source": "dummy-points",
 			"filter": ["!", ["has", "point_count"]],
 			"layout": {
-				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-field": ["coalesce", ["get", "Art"], ""],
 				"text-font": ["Noto Sans Regular"],
 				"text-size": [
 					"interpolate",
@@ -189,7 +213,19 @@
 			"source-layer": "dummy_polygons",
 			"minzoom": 11,
 			"layout": {
-				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-field": [
+					"format",
+					["coalesce", ["get", "habitat_name"], ""],
+					{},
+					"\n",
+					{},
+					[
+						"concat",
+						["to-string", ["round", ["coalesce", ["get", "habitat_area"], 0]]],
+						" ha"
+					],
+					{ "font-scale": 0.85 }
+				],
 				"text-size": 12,
 				"text-font": ["Noto Sans Regular"],
 				"text-allow-overlap": false
@@ -208,7 +244,19 @@
 			"minzoom": 12,
 			"layout": {
 				"symbol-placement": "line",
-				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-field": [
+					"format",
+					["coalesce", ["get", "gewässer_name"], ""],
+					{},
+					"\n",
+					{},
+					[
+						"concat",
+						["to-string", ["round", ["coalesce", ["get", "abfluss"], 0]]],
+						" m³/s"
+					],
+					{ "font-scale": 0.85 }
+				],
 				"text-size": 11,
 				"text-font": ["Noto Sans Regular"],
 				"text-allow-overlap": false
