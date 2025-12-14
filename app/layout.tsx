@@ -59,10 +59,8 @@ export default function RootLayout({
 }) {
 	return (
 		<html lang="de" className={inter.variable}>
-			<body className="font-sans antialiased">
-				{children}
-				<Analytics />
-			</body>
+			<Analytics />
+			<body className="font-sans antialiased">{children}</body>
 		</html>
 	);
 }
