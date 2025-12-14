@@ -22,12 +22,13 @@ function buildDefaults(
 
 	for (const i of items) {
 		visible[i.id] = i.defaultVisible;
-		labelsVisible[i.id] = i.defaultLabelsVisible;
-		opacity[i.id] = i.defaultOpacity;
+		labelsVisible[i.id] = i.defaultLabelsVisible ?? false; // fallback
+		opacity[i.id] = i.defaultOpacity ?? 1; // fallback
 	}
 
 	return { visible, labelsVisible, opacity };
 }
+
 
 export const useTocStore = create<TocState>((set, get) => ({
 	// Start mit leeren Defaults; initFromItems muss einmal aufgerufen werden.

@@ -1,6 +1,8 @@
 // app/map/features/toc/toc-panel.tsx
 "use client";
 
+import { Layers } from "lucide-react";
+
 import { Button } from "@/app/components/ui/button";
 import {
 	Card,
@@ -19,25 +21,27 @@ import {
 } from "@/app/components/ui/sheet";
 import { Slider } from "@/app/components/ui/slider";
 import { Switch } from "@/app/components/ui/switch";
+
 import { useIsMobile } from "@/app/hooks/use-mobile";
-import { MAP_CONFIG } from "@/app/map/config/map-config";
-import { Layers } from "lucide-react";
+import { DEMO_TOC_ITEMS } from "@/app/map/demo/demo-toc-items";
 import { useTocStore } from "./toc-store";
 
 function TocContent() {
 	const visible = useTocStore((s) => s.visible);
 	const labelsVisible = useTocStore((s) => s.labelsVisible);
 	const opacity = useTocStore((s) => s.opacity);
+
 	const setVisible = useTocStore((s) => s.setVisible);
 	const setLabelsVisible = useTocStore((s) => s.setLabelsVisible);
 	const setOpacity = useTocStore((s) => s.setOpacity);
 
 	return (
 		<div className="space-y-4">
-			{MAP_CONFIG.tocItems.map((item) => {
+			{DEMO_TOC_ITEMS.map((item) => {
 				const isOn = visible[item.id] ?? item.defaultVisible;
-				const labelsOn = labelsVisible[item.id] ?? item.defaultLabelsVisible;
-				const op = opacity[item.id] ?? item.defaultOpacity;
+				const labelsOn =
+					labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false;
+				const op = opacity[item.id] ?? item.defaultOpacity ?? 1;
 
 				return (
 					<Card key={item.id}>
@@ -73,7 +77,7 @@ function TocContent() {
 									max={1}
 									step={0.05}
 									onValueChange={(v) =>
-										setOpacity(item.id, v[0] ?? item.defaultOpacity)
+										setOpacity(item.id, v[0] ?? item.defaultOpacity ?? 1)
 									}
 									disabled={!isOn}
 								/>
@@ -99,10 +103,12 @@ export function TocPanel() {
 							Layer
 						</Button>
 					</SheetTrigger>
+
 					<SheetContent side="left" className="w-[320px]">
 						<SheetHeader>
 							<SheetTitle>Layer</SheetTitle>
 						</SheetHeader>
+
 						<div className="mt-4">
 							<TocContent />
 						</div>
@@ -112,7 +118,6 @@ export function TocPanel() {
 		);
 	}
 
-	// Desktop: festes Panel
 	return (
 		<div className="absolute left-3 top-3 z-9999 w-[320px]">
 			<Card className="shadow">

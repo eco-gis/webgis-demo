@@ -1,3 +1,4 @@
+// app/map/features/toc/use-toc-sync.ts
 "use client";
 
 import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
@@ -45,7 +46,6 @@ export function useTocSync(
 	const opacity = useTocStore((s) => s.opacity);
 	const initFromItems = useTocStore((s) => s.initFromItems);
 
-	// Defaults (und neue IDs) in den Store übernehmen
 	useEffect(() => {
 		if (!items.length) return;
 		initFromItems(items);
@@ -56,16 +56,22 @@ export function useTocSync(
 
 		for (const item of items) {
 			const isOn = visible[item.id] ?? item.defaultVisible;
-			const labelsOn = labelsVisible[item.id] ?? item.defaultLabelsVisible;
-			const op = opacity[item.id] ?? item.defaultOpacity;
+
+			const labelsDefault = item.defaultLabelsVisible ?? false;
+			const labelsOn = labelsVisible[item.id] ?? labelsDefault;
+
+			const opacityDefault = item.defaultOpacity ?? 1;
+			const op = opacity[item.id] ?? opacityDefault;
 
 			for (const lid of item.layerIds) {
 				setLayerVisibility(map, lid, isOn);
 				setLayerOpacity(map, lid, op);
 			}
 
-			for (const lid of item.labelLayerIds) {
+			for (const lid of item.labelLayerIds ?? []) {
 				setLayerVisibility(map, lid, isOn && labelsOn);
+				// optional: Labels auch mit Opacity steuern
+				setLayerOpacity(map, lid, op);
 			}
 		}
 	}, [map, items, visible, labelsVisible, opacity]);

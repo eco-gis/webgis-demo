@@ -29,4 +29,4 @@ export const DEMO_TOC_ITEMS: readonly TocItemConfig[] = [
 		defaultLabelsVisible: true,
 		defaultOpacity: 1,
 	},
-] as const;
+];
