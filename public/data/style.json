@@ -1,0 +1,223 @@
+{
+	"version": 8,
+	"name": "biodiv-demo-overlays",
+	"sources": {
+		"dummy": {
+			"type": "vector",
+			"tiles": ["pmtiles:///data/dummy.pmtiles/{z}/{x}/{y}"]
+		},
+		"dummy-points": {
+			"type": "geojson",
+			"data": "/data/dummy_point.geojson",
+			"cluster": true,
+			"clusterRadius": 44,
+			"clusterMaxZoom": 16
+		}
+	},
+	"layers": [
+		{
+			"id": "dummy-polygons",
+			"type": "fill",
+			"source": "dummy",
+			"source-layer": "dummy_polygons",
+			"paint": {
+				"fill-color": "#4CAF50",
+				"fill-opacity": 0.35
+			}
+		},
+		{
+			"id": "dummy-polygons-outline",
+			"type": "line",
+			"source": "dummy",
+			"source-layer": "dummy_polygons",
+			"paint": {
+				"line-color": "#2E7D32",
+				"line-width": [
+					"interpolate",
+					["linear"],
+					["zoom"],
+					6,
+					0.5,
+					12,
+					1.5,
+					16,
+					2.5
+				]
+			}
+		},
+		{
+			"id": "dummy-lines",
+			"type": "line",
+			"source": "dummy",
+			"source-layer": "dummy_lines",
+			"layout": {
+				"line-cap": "round",
+				"line-join": "round"
+			},
+			"paint": {
+				"line-color": "#1976D2",
+				"line-width": [
+					"interpolate",
+					["linear"],
+					["zoom"],
+					6,
+					1,
+					12,
+					2.5,
+					16,
+					5
+				],
+				"line-opacity": 0.95
+			}
+		},
+
+		{
+			"id": "dummy-points-clusters",
+			"type": "circle",
+			"source": "dummy-points",
+			"filter": ["has", "point_count"],
+			"paint": {
+				"circle-color": [
+					"step",
+					["get", "point_count"],
+					"#111827",
+					10,
+					"#0f766e",
+					50,
+					"#2563eb",
+					200,
+					"#7c3aed"
+				],
+				"circle-radius": [
+					"step",
+					["get", "point_count"],
+					14,
+					10,
+					18,
+					50,
+					24,
+					200,
+					30
+				],
+				"circle-opacity": 0.85,
+				"circle-stroke-color": "#ffffff",
+				"circle-stroke-width": 2
+			}
+		},
+		{
+			"id": "dummy-points-cluster-count",
+			"type": "symbol",
+			"source": "dummy-points",
+			"filter": ["has", "point_count"],
+			"layout": {
+				"text-field": ["to-string", ["get", "point_count"]],
+				"text-size": 12,
+				"text-font": ["Noto Sans Regular"],
+				"text-allow-overlap": true,
+				"text-ignore-placement": true
+			},
+			"paint": {
+				"text-color": "#ffffff"
+			}
+		},
+		{
+			"id": "dummy-points",
+			"type": "circle",
+			"source": "dummy-points",
+			"filter": ["!", ["has", "point_count"]],
+			"paint": {
+				"circle-radius": [
+					"interpolate",
+					["linear"],
+					["zoom"],
+					6,
+					4,
+					12,
+					6,
+					16,
+					10
+				],
+				"circle-color": [
+					"match",
+					["get", "category"],
+					"A",
+					"#dc2626",
+					"B",
+					"#ea580c",
+					"#6b7280"
+				],
+				"circle-opacity": 0.95,
+				"circle-stroke-color": "#ffffff",
+				"circle-stroke-width": 1.25
+			}
+		},
+		{
+			"id": "dummy-points-label",
+			"type": "symbol",
+			"source": "dummy-points",
+			"filter": ["!", ["has", "point_count"]],
+			"layout": {
+				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-font": ["Noto Sans Regular"],
+				"text-size": [
+					"interpolate",
+					["linear"],
+					["zoom"],
+					10,
+					10,
+					14,
+					12,
+					16,
+					14
+				],
+				"text-offset": [0, 1.2],
+				"text-anchor": "top",
+				"text-optional": true,
+				"text-allow-overlap": false
+			},
+			"paint": {
+				"text-color": "#111827",
+				"text-halo-color": "#ffffff",
+				"text-halo-width": 1.25
+			}
+		},
+
+		{
+			"id": "dummy-polygons-label",
+			"type": "symbol",
+			"source": "dummy",
+			"source-layer": "dummy_polygons",
+			"minzoom": 11,
+			"layout": {
+				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-size": 12,
+				"text-font": ["Noto Sans Regular"],
+				"text-allow-overlap": false
+			},
+			"paint": {
+				"text-color": "#14532d",
+				"text-halo-color": "#ffffff",
+				"text-halo-width": 1.25
+			}
+		},
+		{
+			"id": "dummy-lines-label",
+			"type": "symbol",
+			"source": "dummy",
+			"source-layer": "dummy_lines",
+			"minzoom": 12,
+			"layout": {
+				"symbol-placement": "line",
+				"text-field": ["coalesce", ["get", "name"], ""],
+				"text-size": 11,
+				"text-font": ["Noto Sans Regular"],
+				"text-allow-overlap": false
+			},
+			"paint": {
+				"text-color": "#0f766e",
+				"text-halo-color": "#ffffff",
+				"text-halo-width": 1.25
+			}
+		}
+	]
+}
