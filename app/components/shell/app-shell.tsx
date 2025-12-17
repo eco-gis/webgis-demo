@@ -15,15 +15,7 @@ interface AppShellProps {
 
 export function AppShell({ children, map, drawing }: AppShellProps) {
 	return (
-		<SidebarProvider
-			defaultOpen={false}
-			style={
-				{
-					"--sidebar-width": "20rem",
-					"--sidebar-width-mobile": "50rem",
-				} as React.CSSProperties
-			}
-		>
+		<SidebarProvider defaultOpen={false}>
 			<AppSidebar map={map} drawing={drawing} />
 			<SidebarInset className="flex flex-col h-dvh w-full overflow-hidden relative bg-background">
 				<AppHeader map={map} />
