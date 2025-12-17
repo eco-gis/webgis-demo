@@ -1,79 +1,55 @@
 "use client";
 
-import type maplibregl from "maplibre-gl";
-import type { LayerSpecification } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
-type RankedLayer = {
-	id: string;
-	type: LayerSpecification["type"];
-	index: number;
-	rank: number;
-};
+const DEFAULT_BASEMAP_LABEL_ANCHORS = [
+	"road-label",
+	"place-label",
+	"poi-label",
+	"transit-label",
+	"settlement-subdivision-label",
+	"settlement-label",
+	"waterway-label",
+] as const;
 
-function typeRank(t: LayerSpecification["type"]): number {
-	// niedriger Rank = weiter unten; höher Rank = weiter oben
-	// => Wir bewegen in Rank-Reihenfolge nach oben (labels zuletzt => ganz oben)
-	switch (t) {
-		case "fill":
-		case "fill-extrusion":
-		case "raster":
-		case "background":
-		case "hillshade":
-		case "heatmap":
-			return 0;
-
-		case "line":
-			return 1;
-
-		case "circle":
-			return 2;
-
-		case "symbol":
-			return 3;
-
-		default:
-			return 0;
+function findFirstExistingLayer(
+	map: MaplibreMap,
+	candidates: readonly string[],
+): string | null {
+	for (const id of candidates) {
+		if (map.getLayer(id)) return id;
 	}
+	return null;
 }
 
-/**
- * Moves custom layers to the very top with a strict visual order:
- * symbol (text) > circle (points) > line > fill (polygons)
- *
- * Important: map.moveLayer(id) without beforeId puts layer on top.
- * Therefore we move lower-ranked layers first, higher-ranked layers last.
- */
-export function moveCustomLayersToTopOrdered(
-	map: maplibregl.Map,
-	prefixes: readonly string[],
-): void {
+export function reorderAppLayers(map: MaplibreMap): void {
 	const style = map.getStyle();
-	const layers = style?.layers ?? [];
-	if (layers.length === 0) return;
+	if (!style || !style.layers) return;
 
-	const ranked: RankedLayer[] = [];
+	const labelAnchor = findFirstExistingLayer(
+		map,
+		DEFAULT_BASEMAP_LABEL_ANCHORS,
+	);
 
-	for (let i = 0; i < layers.length; i++) {
-		const l = layers[i];
-		if (!map.getLayer(l.id)) continue;
+	// Wir sortieren alle Layer, die mit diesen Präfixen beginnen
+	const appLayerPrefixes = ["dummy-", "wms-", "draw-", "search-marker"];
 
-		const isCustom = prefixes.some((p) => l.id.startsWith(p));
-		if (!isCustom) continue;
+	const layers = style.layers;
+	for (const layer of layers) {
+		const isAppLayer = appLayerPrefixes.some((pref) =>
+			layer.id.startsWith(pref),
+		);
 
-		ranked.push({
-			id: l.id,
-			type: l.type,
-			index: i,
-			rank: typeRank(l.type),
-		});
+		if (isAppLayer && labelAnchor && map.getLayer(layer.id)) {
+			// Standard: Unter die Labels der Basemap
+			map.moveLayer(layer.id, labelAnchor);
+		}
 	}
 
-	// stable sort: first by rank (low->high), then by original index
-	ranked.sort((a, b) => (a.rank - b.rank) || (a.index - b.index));
-
-	// Move in that order:
-	// polygons first, then lines, then points, labels last => labels end up on top
-	for (const l of ranked) {
-		map.moveLayer(l.id);
+	// SPEZIALFALL: Drawing & Suche IMMER ganz nach oben (über alles andere)
+	for (const layer of layers) {
+		if (layer.id.startsWith("draw-") || layer.id.startsWith("search-marker")) {
+			map.moveLayer(layer.id);
+		}
 	}
 }

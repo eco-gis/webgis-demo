@@ -1,4 +1,3 @@
-// app/map/features/sidebar/map-sidebar.tsx
 "use client";
 
 import {
@@ -7,306 +6,209 @@ import {
 	AccordionItem,
 	AccordionTrigger,
 } from "@/app/components/ui/accordion";
-import { Checkbox } from "@/app/components/ui/checkbox";
+import { Button } from "@/app/components/ui/button";
+import { ScrollArea } from "@/app/components/ui/scroll-area";
+import { Sidebar, SidebarContent } from "@/app/components/ui/sidebar";
 import {
-	Sidebar,
-	SidebarContent,
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarGroupLabel,
-} from "@/app/components/ui/sidebar";
-import { Slider } from "@/app/components/ui/slider";
-import { MAP_CONFIG } from "@/app/map/config/map-config";
-import { useDrawing } from "@/app/map/features/drawing/use-drawing";
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@/app/components/ui/tabs";
+import {
+	formatMeasurement,
+	type useDrawing,
+} from "@/app/map/features/drawing/use-drawing";
 import { LegendPanel } from "@/app/map/features/legend/legend-panel";
-import { useTocStore } from "@/app/map/features/toc/toc-store";
-import type {
-	TocItemConfig,
-	TocItemId,
-} from "@/app/map/features/toc/toc-types";
+import { TocPanel } from "@/app/map/features/toc/toc-panel";
+import { SwisstopoWmsPanel } from "@/app/map/features/wms/swisstopo-wms-panel";
 import {
-	ArrowRight,
-	Ban,
-	Blend,
+	Check,
+	Globe,
 	Layers,
 	List,
-	MapPin,
-	Minus,
-	MousePointer2,
-	PenLine,
-	Pentagon,
-	Tag,
+	Pencil,
+	Ruler,
 	Trash2,
+	Undo2,
 } from "lucide-react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-function TocPanel() {
-	const visible = useTocStore((s) => s.visible);
-	const labelsVisible = useTocStore((s) => s.labelsVisible);
-	const opacity = useTocStore((s) => s.opacity);
-	const setVisible = useTocStore((s) => s.setVisible);
-	const setLabelsVisible = useTocStore((s) => s.setLabelsVisible);
-	const setOpacity = useTocStore((s) => s.setOpacity);
-
-	const tocItems = MAP_CONFIG.tocItems as readonly TocItemConfig[];
-
-	return (
-		<div className="space-y-2">
-			{tocItems.map((item) => {
-				const id = item.id as TocItemId;
-
-				const isOn = visible[id] ?? item.defaultVisible;
-				const labelsOn = labelsVisible[id] ?? item.defaultLabelsVisible;
-				const op = opacity[id] ?? item.defaultOpacity;
-
-				return (
-					<div
-						key={id}
-						className="rounded-md border border-sidebar-border bg-sidebar p-2"
-					>
-						<div className="flex items-center justify-between gap-2">
-							<div className="flex items-center gap-2 text-sm">
-								<Checkbox
-									checked={isOn}
-									onCheckedChange={(v) => setVisible(id, v === true)}
-								/>
-								<span className="select-none">{item.title}</span>
-							</div>
-
-							<div className="flex items-center gap-2 text-xs text-muted-foreground">
-								<button
-									type="button"
-									className="inline-flex items-center gap-1 underline-offset-4 hover:underline disabled:opacity-50"
-									disabled={!isOn}
-									onClick={() =>
-										setLabelsVisible(
-											id,
-											!(labelsVisible[id] ?? item.defaultLabelsVisible),
-										)
-									}
-									title="Labels"
-								>
-									<Tag className="h-4 w-4" />
-									{labelsOn ? "on" : "off"}
-								</button>
-
-								<div
-									className="inline-flex items-center gap-1"
-									title="Transparenz"
-								>
-									<Blend className="h-4 w-4" />
-									<span>{Math.round(op * 100)}%</span>
-								</div>
-							</div>
-						</div>
-
-						<div className="mt-2">
-							<Slider
-								value={[op]}
-								onValueChange={(v) =>
-									setOpacity(id, v[0] ?? item.defaultOpacity)
-								}
-								min={0}
-								max={1}
-								step={0.05}
-								disabled={!isOn}
-							/>
-						</div>
-					</div>
-				);
-			})}
-		</div>
-	);
-}
-
-export function AppSidebar({ map }: { map: MaplibreMap | null }) {
-	const drawing = useDrawing(map);
+export function AppSidebar({
+	map,
+	drawing,
+}: {
+	map: MaplibreMap | null;
+	drawing: ReturnType<typeof useDrawing>;
+}) {
+	const liveValue = drawing.currentSketch
+		? formatMeasurement(drawing.mode, drawing.currentSketch)
+		: null;
 
 	return (
 		<Sidebar
 			collapsible="offcanvas"
-			style={
-				{
-					"--sidebar-width": "360px",
-					"--sidebar-width-mobile": "320px",
-				} as React.CSSProperties
-			}
+			style={{ "--sidebar-width": "360px" } as React.CSSProperties}
 		>
-			<SidebarContent>
-				<SidebarGroup>
-					<SidebarGroupLabel className="flex items-center gap-2">
-						<Layers className="h-4 w-4" />
-						Layer
-					</SidebarGroupLabel>
+			<SidebarContent className="bg-sidebar">
+				<Tabs defaultValue="toc" className="flex h-full flex-col min-h-0">
+					<div className="p-4 pb-2 border-b bg-background/50">
+						<TabsList className="grid w-full grid-cols-2">
+							<TabsTrigger value="toc" className="gap-2">
+								<Layers className="h-4 w-4" /> Inhalt
+							</TabsTrigger>
+							<TabsTrigger value="legend" className="gap-2">
+								<List className="h-4 w-4" /> Legende
+							</TabsTrigger>
+						</TabsList>
+					</div>
 
-					<SidebarGroupContent className="pt-2">
-						<Accordion
-							type="multiple"
-							defaultValue={["legend"]}
-							className="w-full"
+					<div className="flex-1 overflow-hidden relative">
+						<TabsContent
+							value="toc"
+							className="absolute inset-0 m-0 flex flex-col"
 						>
-							<AccordionItem value="toc">
-								<AccordionTrigger className="gap-2">
-									<span className="inline-flex items-center gap-2">
-										<Layers className="h-4 w-4" />
-										Karteninhalt
-									</span>
-								</AccordionTrigger>
-								<AccordionContent className="pt-2">
+							<ScrollArea className="flex-1">
+								<div className="p-2">
 									<TocPanel />
-								</AccordionContent>
-							</AccordionItem>
+								</div>
+							</ScrollArea>
+							<div className="border-t bg-muted/30 p-4">
+								<h4 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+									<Globe className="h-3 w-3" /> Externe Layer (WMS)
+								</h4>
+								<SwisstopoWmsPanel map={map} />
+							</div>
+						</TabsContent>
 
-							<AccordionItem value="legend">
-								<AccordionTrigger className="gap-2">
-									<span className="inline-flex items-center gap-2">
-										<List className="h-4 w-4" />
-										Legende
+						<TabsContent value="legend" className="absolute inset-0 m-0 p-0">
+							<ScrollArea className="h-full">
+								<LegendPanel map={map} variant="sidebar" />
+							</ScrollArea>
+						</TabsContent>
+					</div>
+				</Tabs>
+
+				<Accordion
+					type="single"
+					collapsible
+					defaultValue="tools"
+					className="w-full border-t"
+				>
+					<AccordionItem value="tools" className="border-b-0 px-4 py-2">
+						<AccordionTrigger className="hover:no-underline py-2">
+							<span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+								Analyse & Zeichnen
+							</span>
+						</AccordionTrigger>
+						<AccordionContent className="pt-2 pb-4 space-y-4">
+							<div className="grid grid-cols-2 gap-2">
+								<Button
+									variant={drawing.mode === "line" ? "default" : "outline"}
+									size="sm"
+									onClick={() => drawing.setMode("line")}
+								>
+									<Ruler className="mr-2 h-4 w-4" /> Messen
+								</Button>
+								<Button
+									variant={drawing.mode === "polygon" ? "default" : "outline"}
+									size="sm"
+									onClick={() => drawing.setMode("polygon")}
+								>
+									<Pencil className="mr-2 h-4 w-4" /> Skizzieren
+								</Button>
+							</div>
+
+							{liveValue && (
+								<div className="rounded-md border border-primary/20 bg-primary/5 p-3 animate-in fade-in zoom-in-95">
+									<span className="text-[9px] uppercase font-bold text-primary/60">
+										Vorschau
 									</span>
-								</AccordionTrigger>
-								<AccordionContent className="pt-2">
-									{/* ✅ echte dynamische Legende */}
-									<LegendPanel map={map} />
-								</AccordionContent>
-							</AccordionItem>
-
-							<AccordionItem value="drawing">
-								<AccordionTrigger className="gap-2">
-									<span className="inline-flex items-center gap-2">
-										<PenLine className="h-4 w-4" />
-										Zeichnen
-									</span>
-								</AccordionTrigger>
-
-								<AccordionContent className="space-y-3 pt-2">
-									<div className="grid grid-cols-2 gap-2">
-										<button
-											type="button"
-											className={[
-												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
-												drawing.mode === "select"
-													? "border-primary bg-primary/10"
-													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
-											].join(" ")}
-											onClick={() => drawing.setMode("select")}
-											title="Select / Aus"
-										>
-											<MousePointer2 className="h-4 w-4" />
-											Aus
-										</button>
-
-										<button
-											type="button"
-											className={[
-												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
-												drawing.mode === "point"
-													? "border-primary bg-primary/10"
-													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
-											].join(" ")}
-											onClick={() => drawing.setMode("point")}
-											title="Punkt setzen"
-										>
-											<MapPin className="h-4 w-4" />
-											Punkt
-										</button>
-
-										<button
-											type="button"
-											className={[
-												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
-												drawing.mode === "line"
-													? "border-primary bg-primary/10"
-													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
-											].join(" ")}
-											onClick={() => drawing.setMode("line")}
-											title="Linie zeichnen"
-										>
-											<Minus className="h-4 w-4" />
-											Linie
-										</button>
-
-										<button
-											type="button"
-											className={[
-												"inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
-												drawing.mode === "polygon"
-													? "border-primary bg-primary/10"
-													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
-											].join(" ")}
-											onClick={() => drawing.setMode("polygon")}
-											title="Polygon zeichnen"
-										>
-											<Pentagon className="h-4 w-4" />
-											Polygon
-										</button>
-
-										<button
-											type="button"
-											className={[
-												"col-span-2 inline-flex items-center justify-center gap-2 rounded-md border px-2 py-1.5 text-xs",
-												drawing.mode === "arrow"
-													? "border-primary bg-primary/10"
-													: "border-sidebar-border bg-sidebar hover:bg-sidebar/80",
-											].join(" ")}
-											onClick={() => drawing.setMode("arrow")}
-											title="Pfeil zeichnen"
-										>
-											<ArrowRight className="h-4 w-4" />
-											Pfeil
-										</button>
-									</div>
-
-									{drawing.mode === "point" && (
-										<div className="space-y-1">
-											<div className="text-xs text-muted-foreground">
-												Label (nur Punkt)
-											</div>
-											<input
-												className="h-9 w-full rounded-md border border-sidebar-border bg-sidebar px-2 text-sm outline-none focus:ring-2 focus:ring-primary/40"
-												placeholder="z.B. Brutplatz A"
-												onChange={(e) => drawing.setLabel(e.target.value)}
-											/>
+									<div className="flex justify-between items-center">
+										<span className="text-sm font-mono font-bold text-primary">
+											{liveValue}
+										</span>
+										<div className="flex gap-1">
+											<Button
+												size="icon"
+												variant="ghost"
+												className="h-7 w-7"
+												onClick={drawing.undoLast}
+											>
+												<Undo2 className="h-3 w-3" />
+											</Button>
+											<Button
+												size="icon"
+												variant="ghost"
+												className="h-7 w-7 text-green-600"
+												onClick={drawing.finish}
+											>
+												<Check className="h-3 w-3" />
+											</Button>
 										</div>
-									)}
+									</div>
+								</div>
+							)}
 
-									<div className="text-[11px] leading-snug text-muted-foreground">
-										{drawing.mode === "point" && "Klick setzt Punkt."}
-										{(drawing.mode === "line" ||
-											drawing.mode === "polygon" ||
-											drawing.mode === "arrow") &&
-											"Mehrere Klicks, dann Doppelklick oder Enter zum Abschliessen. Esc bricht ab."}
-										{drawing.mode === "select" &&
-											"Werkzeug wählen, um zu zeichnen."}
+							{drawing.hasFeatures && (
+								<div className="space-y-2 pt-2 border-t">
+									<div className="flex items-center justify-between">
+										<span className="text-[10px] font-bold uppercase text-muted-foreground">
+											Resultate
+										</span>
+										<Button
+											variant="ghost"
+											className="h-auto p-0 text-[10px] text-destructive hover:bg-transparent"
+											onClick={drawing.clearAll}
+										>
+											Alle löschen
+										</Button>
 									</div>
 
-									<div className="flex items-center gap-2">
-										<button
-											type="button"
-											className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs hover:bg-sidebar/80 disabled:opacity-50"
-											onClick={() => drawing.cancel()}
-											disabled={!drawing.hasSketch}
-											title="Aktuelle Skizze verwerfen"
-										>
-											<Ban className="h-4 w-4" />
-											Abbrechen
-										</button>
-
-										<button
-											type="button"
-											className="inline-flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar px-2 py-1.5 text-xs hover:bg-sidebar/80 disabled:opacity-50"
-											onClick={() => drawing.clearAll()}
-											disabled={!drawing.hasFeatures && !drawing.hasSketch}
-											title="Alles löschen"
-										>
-											<Trash2 className="h-4 w-4" />
-											Löschen
-										</button>
+									<div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
+										{drawing.allFeatures.map((f) => (
+											<div
+												key={String(f.properties?.id)}
+												className="flex justify-between items-center bg-muted/50 p-2 rounded-md text-[12px] group border border-transparent hover:border-border"
+											>
+												<div className="flex flex-col">
+													<span className="text-[9px] text-muted-foreground uppercase font-semibold">
+														{f.properties?.kind === "polygon"
+															? "Fläche"
+															: "Distanz"}
+													</span>
+													<span className="font-mono font-bold">
+														{formatMeasurement(
+															(f.properties?.kind as "line" | "polygon") ||
+																"line",
+															f,
+														)}
+													</span>
+												</div>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-7 w-7 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+													onClick={() =>
+														drawing.deleteFeature(f.properties?.id as string)
+													}
+												>
+													<Trash2 className="h-3.5 w-3.5" />
+												</Button>
+											</div>
+										))}
 									</div>
-								</AccordionContent>
-							</AccordionItem>
-						</Accordion>
-					</SidebarGroupContent>
-				</SidebarGroup>
+								</div>
+							)}
+
+							{drawing.mode !== "select" && !liveValue && (
+								<p className="text-[11px] text-center text-muted-foreground py-2 italic">
+									Klicken Sie in die Karte, um zu starten.
+								</p>
+							)}
+						</AccordionContent>
+					</AccordionItem>
+				</Accordion>
 			</SidebarContent>
 		</Sidebar>
 	);

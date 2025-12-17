@@ -105,4 +105,20 @@ export const DRAW_LAYERS: readonly LayerSpecification[] = [
 			"line-dasharray": [2, 2],
 		},
 	},
+
+	{
+		id: "draw-arrow-heads",
+		type: "symbol",
+		source: DRAW_DATA_SOURCE_ID,
+		filter: ["==", ["get", "kind"], "arrow"],
+		layout: {
+			"icon-image": "arrow-icon",
+			"icon-size": 0.6,
+			"symbol-placement": "line",
+			"symbol-spacing": 100,
+			"icon-rotate": 0,
+			"icon-rotation-alignment": "map",
+			"icon-allow-overlap": true,
+		},
+	},
 ] as const;

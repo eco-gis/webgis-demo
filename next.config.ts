@@ -1,7 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-	/* config options here */
+	images: {
+		remotePatterns: [
+			{ protocol: "https", hostname: "api3.geo.admin.ch", pathname: "/**" },
+		],
+	},
 };
 
 export default nextConfig;

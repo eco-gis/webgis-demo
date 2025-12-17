@@ -1,4 +1,6 @@
-export type TocItemId = "polygons" | "lines" | "points";
+export type StaticTocItemId = "polygons" | "lines" | "points" | (string & {});
+export type DynamicTocItemId = `wms:${string}`;
+export type TocItemId = StaticTocItemId | DynamicTocItemId;
 
 export type TocLegendItem = {
 	label: string;
@@ -8,10 +10,11 @@ export type TocLegendItem = {
 export type TocItemConfig = {
 		id: TocItemId;
 		title: string;
-		layerIds: string[];
-		labelLayerIds?: string[];
-		defaultVisible: boolean;
+		mapLayerIds?: readonly string[];
+		labelLayerIds?: readonly string[];
+		defaultVisible?: boolean;
 		defaultLabelsVisible?: boolean;
 		defaultOpacity?: number;
-		legend?: TocLegendItem[];
+		legendUrl?: string;
+		legendItems?: readonly TocLegendItem[];
 	};

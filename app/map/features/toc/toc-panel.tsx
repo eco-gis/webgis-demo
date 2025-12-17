@@ -1,133 +1,111 @@
-// app/map/features/toc/toc-panel.tsx
+// app/map/features/sidebar/toc-panel.tsx
 "use client";
 
-import { Layers } from "lucide-react";
-
-import { Button } from "@/app/components/ui/button";
+import { MAP_CONFIG } from "@/app/map/config/map-config";
+import { SortableTocItem } from "@/app/map/features/toc/sortable-toc-item";
+import { useTocStore } from "@/app/map/features/toc/toc-store";
+import type { TocItemConfig } from "@/app/map/features/toc/toc-types";
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/app/components/ui/card";
-import { Label } from "@/app/components/ui/label";
-import { Separator } from "@/app/components/ui/separator";
+	closestCenter,
+	DndContext,
+	type DragEndEvent,
+	KeyboardSensor,
+	PointerSensor,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
 import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/app/components/ui/sheet";
-import { Slider } from "@/app/components/ui/slider";
-import { Switch } from "@/app/components/ui/switch";
+	arrayMove,
+	SortableContext,
+	sortableKeyboardCoordinates,
+	verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useMemo } from "react";
 
-import { useIsMobile } from "@/app/hooks/use-mobile";
-import { DEMO_TOC_ITEMS } from "@/app/map/demo/demo-toc-items";
-import { useTocStore } from "./toc-store";
-
-function TocContent() {
+export function TocPanel() {
 	const visible = useTocStore((s) => s.visible);
 	const labelsVisible = useTocStore((s) => s.labelsVisible);
 	const opacity = useTocStore((s) => s.opacity);
-
+	const order = useTocStore((s) => s.order);
+	const setOrder = useTocStore((s) => s.setOrder);
 	const setVisible = useTocStore((s) => s.setVisible);
 	const setLabelsVisible = useTocStore((s) => s.setLabelsVisible);
 	const setOpacity = useTocStore((s) => s.setOpacity);
+	const dynamicItems = useTocStore((s) => s.dynamicItems);
 
-	return (
-		<div className="space-y-4">
-			{DEMO_TOC_ITEMS.map((item) => {
-				const isOn = visible[item.id] ?? item.defaultVisible;
-				const labelsOn =
-					labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false;
-				const op = opacity[item.id] ?? item.defaultOpacity ?? 1;
-
-				return (
-					<Card key={item.id}>
-						<CardHeader className="space-y-1">
-							<CardTitle className="text-sm">{item.title}</CardTitle>
-						</CardHeader>
-
-						<CardContent className="space-y-3">
-							<div className="flex items-center justify-between gap-3">
-								<Label className="text-xs">Sichtbar</Label>
-								<Switch
-									checked={isOn}
-									onCheckedChange={(v) => setVisible(item.id, v)}
-								/>
-							</div>
-
-							<div className="flex items-center justify-between gap-3">
-								<Label className="text-xs">Labels</Label>
-								<Switch
-									checked={labelsOn}
-									onCheckedChange={(v) => setLabelsVisible(item.id, v)}
-									disabled={!isOn}
-								/>
-							</div>
-
-							<Separator />
-
-							<div className="space-y-2">
-								<Label className="text-xs">Opacity</Label>
-								<Slider
-									value={[op]}
-									min={0}
-									max={1}
-									step={0.05}
-									onValueChange={(v) =>
-										setOpacity(item.id, v[0] ?? item.defaultOpacity ?? 1)
-									}
-									disabled={!isOn}
-								/>
-							</div>
-						</CardContent>
-					</Card>
-				);
-			})}
-		</div>
+	// Kombinierte Liste aller Items
+	const allItems = useMemo(
+		() => [...(MAP_CONFIG.tocItems as TocItemConfig[]), ...dynamicItems],
+		[dynamicItems],
 	);
-}
 
-export function TocPanel() {
-	const isMobile = useIsMobile();
+	// Sortierte Liste basierend auf der 'order' im Store
+	const orderedItems = useMemo(() => {
+		if (!order.length) return allItems;
+		const itemMap = new Map(allItems.map((it) => [it.id, it]));
+		const sorted = order
+			.map((id) => itemMap.get(id))
+			.filter(Boolean) as TocItemConfig[];
 
-	if (isMobile) {
+		// Items hinzufügen, die noch nicht in 'order' sind (z.B. neu registrierte dynamicItems)
+		const remaining = allItems.filter((it) => !order.includes(it.id));
+		return [...sorted, ...remaining];
+	}, [allItems, order]);
+
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+		useSensor(KeyboardSensor, {
+			coordinateGetter: sortableKeyboardCoordinates,
+		}),
+	);
+
+	function handleDragEnd(event: DragEndEvent) {
+		const { active, over } = event;
+		if (over && active.id !== over.id) {
+			const oldIndex = orderedItems.findIndex((it) => it.id === active.id);
+			const newIndex = orderedItems.findIndex((it) => it.id === over.id);
+			const newOrder = arrayMove(orderedItems, oldIndex, newIndex).map(
+				(it) => it.id,
+			);
+			setOrder(newOrder);
+		}
+	}
+
+	if (orderedItems.length === 0) {
 		return (
-			<div className="absolute left-3 top-3 z-9999">
-				<Sheet>
-					<SheetTrigger asChild>
-						<Button variant="secondary" size="sm" className="gap-2 shadow">
-							<Layers className="h-4 w-4" />
-							Layer
-						</Button>
-					</SheetTrigger>
-
-					<SheetContent side="left" className="w-[320px]">
-						<SheetHeader>
-							<SheetTitle>Layer</SheetTitle>
-						</SheetHeader>
-
-						<div className="mt-4">
-							<TocContent />
-						</div>
-					</SheetContent>
-				</Sheet>
+			<div className="p-8 text-center text-sm text-muted-foreground">
+				Keine Ebenen vorhanden
 			</div>
 		);
 	}
 
 	return (
-		<div className="absolute left-3 top-3 z-9999 w-[320px]">
-			<Card className="shadow">
-				<CardHeader>
-					<CardTitle className="text-sm">Layer</CardTitle>
-				</CardHeader>
-				<CardContent>
-					<TocContent />
-				</CardContent>
-			</Card>
+		<div className="p-4 space-y-2">
+			<DndContext
+				sensors={sensors}
+				collisionDetection={closestCenter}
+				onDragEnd={handleDragEnd}
+			>
+				<SortableContext
+					items={orderedItems.map((it) => it.id)}
+					strategy={verticalListSortingStrategy}
+				>
+					{orderedItems.map((item) => (
+						<SortableTocItem
+							key={item.id}
+							item={item}
+							isOn={visible[item.id] ?? item.defaultVisible ?? true}
+							labelsOn={
+								labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false
+							}
+							op={opacity[item.id] ?? item.defaultOpacity ?? 1}
+							setVisible={setVisible}
+							setLabelsVisible={setLabelsVisible}
+							setOpacity={setOpacity}
+						/>
+					))}
+				</SortableContext>
+			</DndContext>
 		</div>
 	);
 }

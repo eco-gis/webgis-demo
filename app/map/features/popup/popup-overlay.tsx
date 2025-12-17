@@ -95,7 +95,7 @@ function findTocForLayerId(
 	layerId: string,
 ): TocItemConfig | null {
 	for (const t of tocItems) {
-		const all = [...(t.layerIds ?? []), ...(t.labelLayerIds ?? [])];
+		const all = [...(t.mapLayerIds ?? []), ...(t.labelLayerIds ?? [])];
 		if (all.includes(layerId)) return t;
 	}
 	return null;

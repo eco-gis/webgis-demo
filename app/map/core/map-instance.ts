@@ -1,10 +1,9 @@
 // app/map/core/map-instance.ts
-
+import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 import maplibregl, {
 	type LngLatLike,
 	type Map as MaplibreMap,
 } from "maplibre-gl";
-import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 
 type CreateMapOptions = {
 	container: HTMLDivElement;
@@ -23,6 +22,11 @@ export function createMap({
 		center,
 		zoom,
 	});
+
+	// ✅ Debug: Map in Console verfügbar machen
+	if (process.env.NODE_ENV !== "production") {
+		(window as unknown as { __map?: MaplibreMap }).__map = map;
+	}
 
 	map.addControl(
 		new maplibregl.NavigationControl({ visualizePitch: true }),

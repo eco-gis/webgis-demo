@@ -1,18 +1,16 @@
-// app/map/basemaps/use-basemap-sync.ts
 "use client";
-
-import type {
-	LayerSpecification,
-	Map as MaplibreMap,
-	SourceSpecification,
-} from "maplibre-gl";
-import { useEffect } from "react";
 
 import {
 	type MapTilerStyleId,
 	mapTilerStyleUrl,
 } from "@/app/lib/maptiler/styles";
-
+import { reorderAppLayers } from "@/app/map/core/layer-order";
+import type {
+	LayerSpecification,
+	Map as MaplibreMap,
+	SourceSpecification,
+} from "maplibre-gl";
+import { useEffect, useRef } from "react";
 import type { BasemapId } from "./basemap-config";
 import { getBasemapById } from "./basemap-config";
 
@@ -27,125 +25,75 @@ async function loadOverlayStyle(): Promise<OverlayStyle> {
 	if (overlaysCache) return overlaysCache;
 
 	const res = await fetch("/data/style.json", { cache: "no-store" });
-	if (!res.ok) {
+	if (!res.ok)
 		throw new Error(`Failed to load /data/style.json (HTTP ${res.status})`);
-	}
 
 	const json = (await res.json()) as OverlayStyle;
-
-	overlaysCache = {
-		sources: json.sources ?? {},
-		layers: json.layers ?? [],
-	};
-
+	overlaysCache = { sources: json.sources ?? {}, layers: json.layers ?? [] };
 	return overlaysCache;
 }
 
-function moveOverlaysToTop(
-	map: MaplibreMap,
-	overlayLayerIds: readonly string[],
-) {
-	for (const id of overlayLayerIds) {
-		if (map.getLayer(id)) map.moveLayer(id);
-	}
-}
-
 function applyOverlays(map: MaplibreMap, overlays: OverlayStyle): void {
-	const sources = overlays.sources ?? {};
-	for (const [id, spec] of Object.entries(sources)) {
+	for (const [id, spec] of Object.entries(overlays.sources ?? {})) {
 		if (!map.getSource(id)) map.addSource(id, spec);
 	}
-
-	const layers = overlays.layers ?? [];
-	for (const layer of layers) {
-		if (map.getLayer(layer.id)) continue;
-		map.addLayer(layer);
+	for (const layer of overlays.layers ?? []) {
+		if (!map.getLayer(layer.id)) map.addLayer(layer);
 	}
-
-	moveOverlaysToTop(
-		map,
-		layers.map((l) => l.id),
-	);
 }
 
-function waitForStyleLoaded(map: MaplibreMap): Promise<void> {
+function waitForStyleLoad(map: MaplibreMap): Promise<void> {
 	return new Promise((resolve) => {
-		if (map.isStyleLoaded()) {
-			resolve();
-			return;
-		}
-
-		const onStyleData = () => {
-			if (!map.isStyleLoaded()) return;
-			map.off("styledata", onStyleData);
-			resolve();
-		};
-
-		map.on("styledata", onStyleData);
+		if (map.isStyleLoaded()) return resolve();
+		map.once("style.load", () => resolve());
 	});
 }
 
-function waitForIdle(map: MaplibreMap): Promise<void> {
-	return new Promise((resolve) => {
-		const onIdle = () => {
-			map.off("idle", onIdle);
-			resolve();
-		};
-		map.on("idle", onIdle);
-	});
-}
-
-/**
- * Sync: Basemap wechseln ohne dass Overlays verschwinden.
- * Benutzung: useBasemapSync(map, basemapId)
- */
 export function useBasemapSync(
 	map: MaplibreMap | null,
 	basemapId: BasemapId,
 ): void {
+	const runRef = useRef(0);
+
 	useEffect(() => {
 		if (!map) return;
 
 		let cancelled = false;
-		let runId = 0;
+		const run = ++runRef.current;
 
-		const currentRun = ++runId;
+		// stabile Funktion-Referenz pro Run
+		const keepOrderStable = () => {
+			// Wichtig: hier auch WMS berücksichtigen -> Prefix "wms-" ist in reorderAppLayers drin
+			reorderAppLayers(map);
+		};
+
+		// keine doppelten Listener
+		map.off("styledata", keepOrderStable);
 
 		(async () => {
 			const def = getBasemapById(basemapId);
 			const nextStyleUrl = mapTilerStyleUrl(def.styleId as MapTilerStyleId);
 
-			// Overlays laden (einmalig gecached)
 			const overlays = await loadOverlayStyle();
-			if (cancelled || currentRun !== runId) return;
+			if (cancelled || run !== runRef.current) return;
 
-			// Wenn der Style schon derselbe ist: nix tun (verhindert unnötige reloads)
-			// getStyle().sprite ist stabiler als URL, aber reicht als Guard im Demo.
-			// Wenn du eine saubere "current basemap id" im map state führst: noch besser.
-			try {
-				map.setStyle(nextStyleUrl);
-			} catch (e) {
-				// setStyle kann werfen, wenn map gerade disposed wird
-				if (!cancelled) throw e;
-				return;
-			}
+			map.setStyle(nextStyleUrl);
 
-			await waitForStyleLoaded(map);
-			if (cancelled || currentRun !== runId) return;
+			await waitForStyleLoad(map);
+			if (cancelled || run !== runRef.current) return;
 
 			applyOverlays(map, overlays);
 
-			// gegen späte Glyph/Sprite Nachzüge
-			await waitForIdle(map);
-			if (cancelled || currentRun !== runId) return;
-
-			applyOverlays(map, overlays);
+			// Initial + dauerhaft stabil halten
+			keepOrderStable();
+			map.on("styledata", keepOrderStable);
 		})().catch((err: unknown) => {
 			if (!cancelled) console.error("Basemap sync failed:", err);
 		});
 
 		return () => {
 			cancelled = true;
+			map.off("styledata", keepOrderStable);
 		};
 	}, [map, basemapId]);
 }

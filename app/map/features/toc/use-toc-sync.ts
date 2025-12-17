@@ -1,40 +1,52 @@
-// app/map/features/toc/use-toc-sync.ts
 "use client";
 
-import type { LayerSpecification, Map as MapLibreMap } from "maplibre-gl";
-import { useEffect } from "react";
+import { reorderAppLayers } from "@/app/map/core/layer-order";
+import type { Map as MapLibreMap, StyleLayer } from "maplibre-gl";
+import { useEffect, useMemo } from "react";
 import { useTocStore } from "./toc-store";
-import type { TocItemConfig } from "./toc-types";
+import type { TocItemConfig, TocItemId } from "./toc-types";
 
-function setLayerVisibility(
-	map: MapLibreMap,
-	layerId: string,
-	visible: boolean,
-): void {
-	if (!map.getLayer(layerId)) return;
-	map.setLayoutProperty(layerId, "visibility", visible ? "visible" : "none");
+function opacityPaintPropByType(type: StyleLayer["type"]): string | null {
+	switch (type) {
+		case "fill":
+			return "fill-opacity";
+		case "line":
+			return "line-opacity";
+		case "circle":
+			return "circle-opacity";
+		case "symbol":
+			return "text-opacity";
+		case "raster":
+			return "raster-opacity";
+		default:
+			return null;
+	}
 }
 
-function opacityPaintProp(layer: LayerSpecification): string | null {
-	if (layer.type === "fill") return "fill-opacity";
-	if (layer.type === "line") return "line-opacity";
-	if (layer.type === "circle") return "circle-opacity";
-	if (layer.type === "symbol") return "text-opacity";
-	return null;
+function asStringArray(v: unknown): string[] {
+	return Array.isArray(v)
+		? v.filter((x): x is string => typeof x === "string")
+		: [];
 }
 
-function setLayerOpacity(
-	map: MapLibreMap,
-	layerId: string,
-	value01: number,
-): void {
-	const layer = map.getLayer(layerId) as LayerSpecification | undefined;
-	if (!layer) return;
+function buildOrderedItems(
+	items: readonly TocItemConfig[],
+	order: readonly TocItemId[],
+): TocItemConfig[] {
+	const byId = new Map<TocItemId, TocItemConfig>();
+	for (const it of items) byId.set(it.id, it);
 
-	const prop = opacityPaintProp(layer);
-	if (!prop) return;
-
-	map.setPaintProperty(layerId, prop, value01);
+	const out: TocItemConfig[] = [];
+	// Zuerst nach der definierten 'order' gehen
+	for (const id of order) {
+		const it = byId.get(id);
+		if (it) out.push(it);
+	}
+	// Fehlende Items (die nicht in order sind) hinten anfügen
+	for (const it of items) {
+		if (!out.some((o) => o.id === it.id)) out.push(it);
+	}
+	return out;
 }
 
 export function useTocSync(
@@ -44,35 +56,80 @@ export function useTocSync(
 	const visible = useTocStore((s) => s.visible);
 	const labelsVisible = useTocStore((s) => s.labelsVisible);
 	const opacity = useTocStore((s) => s.opacity);
+	const order = useTocStore((s) => s.order);
 	const initFromItems = useTocStore((s) => s.initFromItems);
 
 	useEffect(() => {
-		if (!items.length) return;
-		initFromItems(items);
+		if (items.length) initFromItems(items);
 	}, [items, initFromItems]);
 
+	const orderedItems = useMemo(
+		() => buildOrderedItems(items, order),
+		[items, order],
+	);
+
+	// Z-ORDER SYNC
 	useEffect(() => {
 		if (!map) return;
 
-		for (const item of items) {
-			const isOn = visible[item.id] ?? item.defaultVisible;
+		// 1. Grundschichtung herstellen (Basemap unten, App oben)
+		reorderAppLayers(map);
 
-			const labelsDefault = item.defaultLabelsVisible ?? false;
-			const labelsOn = labelsVisible[item.id] ?? labelsDefault;
+		// 2. TOC-Sortierung anwenden
+		// Da moveLayer(id) den Layer an das Ende des Stacks (nach oben) schiebt,
+		// müssen wir orderedItems von UNTEN NACH OBEN durchlaufen.
+		const itemsToMove = [...orderedItems].reverse();
 
-			const opacityDefault = item.defaultOpacity ?? 1;
-			const op = opacity[item.id] ?? opacityDefault;
-
-			for (const lid of item.layerIds) {
-				setLayerVisibility(map, lid, isOn);
-				setLayerOpacity(map, lid, op);
+		for (const item of itemsToMove) {
+			// Erst Flächen/Linien
+			for (const lid of asStringArray(item.mapLayerIds)) {
+				if (map.getLayer(lid)) map.moveLayer(lid);
 			}
-
-			for (const lid of item.labelLayerIds ?? []) {
-				setLayerVisibility(map, lid, isOn && labelsOn);
-				// optional: Labels auch mit Opacity steuern
-				setLayerOpacity(map, lid, op);
+			// Dann Labels (damit Labels innerhalb eines Items über der Fläche liegen)
+			for (const lid of asStringArray(item.labelLayerIds)) {
+				if (map.getLayer(lid)) map.moveLayer(lid);
 			}
 		}
-	}, [map, items, visible, labelsVisible, opacity]);
+
+		// 3. System-Layer (Draw/Search) nochmals final nach ganz oben
+		const layers = map.getStyle()?.layers || [];
+		for (const l of layers) {
+			if (l.id.startsWith("draw-") || l.id.startsWith("search-marker")) {
+				map.moveLayer(l.id);
+			}
+		}
+	}, [map, orderedItems]);
+
+	// VISIBILITY & OPACITY SYNC
+	useEffect(() => {
+		if (!map) return;
+
+		for (const item of orderedItems) {
+			const isOn = visible[item.id] ?? true;
+			const labelsOn = labelsVisible[item.id] ?? false;
+			const op = opacity[item.id] ?? 1;
+
+			const allLayerIds = [
+				...asStringArray(item.mapLayerIds),
+				...asStringArray(item.labelLayerIds),
+			];
+
+			for (const lid of allLayerIds) {
+				const layer = map.getLayer(lid);
+				if (!layer) continue;
+
+				const isLabelLayer = asStringArray(item.labelLayerIds).includes(lid);
+				const shouldBeVisible = isLabelLayer ? isOn && labelsOn : isOn;
+
+				map.setLayoutProperty(
+					lid,
+					"visibility",
+					shouldBeVisible ? "visible" : "none",
+				);
+
+				const prop = opacityPaintPropByType(layer.type);
+				if (prop) map.setPaintProperty(lid, prop, op);
+			}
+		}
+	}, [map, orderedItems, visible, labelsVisible, opacity]);
 }
