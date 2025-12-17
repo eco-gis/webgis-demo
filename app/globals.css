@@ -43,9 +43,7 @@
 }
 
 :root {
-	:root {
-		--font-sans: "InterVariable", "Inter", sans-serif;
-	}
+	--font-sans: "InterVariable", "Inter", sans-serif;
 	--radius: 0.625rem;
 
 	/* LIGHT THEME

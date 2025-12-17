@@ -107,17 +107,7 @@ export function AppSidebar({
 	};
 
 	return (
-		<Sidebar
-			variant="sidebar"
-			side="left"
-			className="border-r border-border/40 overflow-hidden"
-			style={
-				{
-					"--sidebar-width": "360px",
-					"--sidebar-width-mobile": "100vw",
-				} as React.CSSProperties
-			}
-		>
+		<Sidebar variant="sidebar" side="left">
 			{/* WICHTIG: h-full und overflow-hidden auf den Tabs, damit ScrollArea funktioniert */}
 			<Tabs defaultValue="toc" className="flex flex-col h-full overflow-hidden">
 				<SidebarHeader className="p-4 pb-2 bg-background shrink-0">
