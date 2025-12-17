@@ -1,9 +1,8 @@
-// app/map/features/drawing/use-drawing.ts
 "use client";
 
 import * as turf from "@turf/turf";
 import type maplibregl from "maplibre-gl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureArrowIcon } from "./draw-icons";
 import {
 	DRAW_DATA_SOURCE_ID,
@@ -11,380 +10,393 @@ import {
 	DRAW_SKETCH_SOURCE_ID,
 	DRAW_SOURCES,
 } from "./draw-layers";
-import type { DrawCollection, DrawKind, DrawMode } from "./draw-types";
+
+/** --- Types --- */
 
 type LngLat = [number, number];
+
+export type DrawMode =
+	| "select"
+	| "measure-line"
+	| "measure-polygon"
+	| "draw-point"
+	| "draw-line"
+	| "draw-arrow"
+	| "draw-polygon";
+
+export type DrawKind = "line" | "polygon" | "point" | "arrow";
+export type ToolUsage = "measure" | "draw";
+
+/** --- Hilfsfunktionen --- */
 
 function newId(): string {
 	return crypto.randomUUID();
 }
 
-type SketchFeatureCollection = {
-	type: "FeatureCollection";
-	features: Array<{
-		type: "Feature";
-		properties: Record<string, unknown>;
-		geometry:
-			| { type: "Point"; coordinates: LngLat }
-			| { type: "LineString"; coordinates: LngLat[] }
-			| { type: "Polygon"; coordinates: LngLat[][] };
-	}>;
-};
-
-function buildSketchGeoJson(params: {
-	mode: DrawMode;
-	coords: LngLat[];
-	hover: LngLat | null;
-}): SketchFeatureCollection {
-	const { mode, coords, hover } = params;
-
-	// 1. Early return for modes that don't need a preview
-	if (mode === "select" || mode === "point" || coords.length === 0) {
-		return { type: "FeatureCollection", features: [] };
-	}
-
-	const features: SketchFeatureCollection["features"] = [];
-
-	// 2. Handle Line/Arrow Preview
-	// Only include hover in the line if it actually exists
-	const lineCoords: LngLat[] = hover ? [...coords, hover] : [...coords];
-
-	// If it's a polygon, we close the visual loop to the first point
-	let displayLineCoords = lineCoords;
-	if (mode === "polygon" && hover) {
-		displayLineCoords = [...coords, hover, coords[0]];
-	}
-
-	features.push({
-		type: "Feature",
-		properties: { kind: "sketch-line" },
-		geometry: { type: "LineString", coordinates: displayLineCoords },
-	});
-
-	// 3. Handle Polygon Fill Preview
-	// We only create the 'Polygon' feature if we are in polygon mode and have a hover point
-	if (mode === "polygon" && hover) {
-		const ring: LngLat[] = [...coords, hover, coords[0]];
-		features.push({
-			type: "Feature",
-			properties: { kind: "sketch-polygon" },
-			geometry: { type: "Polygon", coordinates: [ring] },
-		});
-	}
-
-	return { type: "FeatureCollection", features };
-}
-
-
-function setGeoJsonSourceData(
-	map: maplibregl.Map,
-	sourceId: string,
-	data: GeoJSON.FeatureCollection,
-): void {
-	const src = map.getSource(sourceId);
-	if (src && "setData" in src) {
-		(src as maplibregl.GeoJSONSource).setData(data);
-	}
-}
-
-/**
- * Formatiert Messwerte:
- * - Flächen < 1000m² -> m², sonst km²
- * - Strecken < 1000m -> m, sonst km
- */
 export function formatMeasurement(
 	mode: string,
 	feature: GeoJSON.Feature,
 ): string {
 	if (!feature.geometry) return "";
 
-	// FLÄCHEN (Polygon)
-	if (mode === "polygon") {
+	const isPolygon =
+		mode.includes("polygon") || feature.properties?.kind === "polygon";
+
+	if (isPolygon) {
 		const area = turf.area(feature);
-
-		if (area < 1000) {
-			return `${Math.round(area).toLocaleString("de-CH")} m²`;
-		}
-
-		const sqkm = area / 1_000_000;
-		return `${sqkm.toLocaleString("de-CH", {
-			minimumFractionDigits: 3,
-			maximumFractionDigits: 3,
-		})} km²`;
+		return area < 1_000_000
+			? `${Math.round(area).toLocaleString("de-CH")} m²`
+			: `${(area / 1_000_000).toLocaleString("de-CH", {
+					maximumFractionDigits: 2,
+				})} km²`;
 	}
 
-	// DISTANZEN (LineString / Arrow)
-	try {
-		const length = turf.length(
-			feature as GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>,
-			{ units: "meters" },
-		);
+	const lengthM = turf.length(
+		feature as GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>,
+		{ units: "meters" },
+	);
 
-		if (length < 1000) {
-			return `${Math.round(length).toLocaleString("de-CH")} m`;
-		}
-
-		const km = length / 1000;
-		return `${km.toLocaleString("de-CH", {
-			minimumFractionDigits: 2,
-			maximumFractionDigits: 2,
-		})} km`;
-	} catch {
-		return "";
-	}
+	return lengthM < 1000
+		? `${Math.round(lengthM).toLocaleString("de-CH")} m`
+		: `${(lengthM / 1000).toLocaleString("de-CH", {
+				maximumFractionDigits: 2,
+			})} km`;
 }
 
-export function useDrawing(map: maplibregl.Map | null) {
-	const commitRef = useRef<(kind: DrawKind) => void>(() => {});
-	const updateSourcesRef = useRef<() => void>(() => {});
+function buildSketchGeoJson(params: {
+	mode: DrawMode;
+	coords: LngLat[];
+	hover: LngLat | null;
+}): GeoJSON.FeatureCollection {
+	const { mode, coords, hover } = params;
 
-	const [mode, setMode] = useState<DrawMode>("select");
-	const [version, setVersion] = useState(0);
+	if (mode === "select" || mode === "draw-point" || coords.length === 0) {
+		return { type: "FeatureCollection", features: [] };
+	}
 
-	const dataRef = useRef<DrawCollection>({
-		type: "FeatureCollection",
-		features: [],
+	const features: GeoJSON.Feature[] = [];
+	const isPolygon = mode.endsWith("polygon");
+	const isArrow = mode.endsWith("arrow");
+
+	const displayLineCoords = hover ? [...coords, hover] : [...coords];
+	const lineGeometryCoords =
+		isPolygon && hover ? [...coords, hover, coords[0]] : displayLineCoords;
+
+	features.push({
+		type: "Feature",
+		properties: {
+			kind: isArrow ? "arrow" : "sketch-line",
+			usage: mode.startsWith("measure") ? "measure" : "draw",
+		},
+		geometry: { type: "LineString", coordinates: lineGeometryCoords },
 	});
+
+	if (isPolygon && hover && coords.length >= 2) {
+		features.push({
+			type: "Feature",
+			properties: { kind: "sketch-polygon" },
+			geometry: {
+				type: "Polygon",
+				coordinates: [[...coords, hover, coords[0]]],
+			},
+		});
+	}
+
+	return { type: "FeatureCollection", features };
+}
+
+function buildCurrentSketchFeature(params: {
+	mode: DrawMode;
+	coords: LngLat[];
+	hover: LngLat | null;
+}): GeoJSON.Feature | null {
+	const { mode, coords, hover } = params;
+	const combined = hover ? [...coords, hover] : [...coords];
+
+	if (mode === "select" || combined.length === 0) return null;
+
+	const isPolygon = mode.endsWith("polygon");
+
+	if (isPolygon && combined.length >= 3) {
+		return {
+			type: "Feature",
+			properties: { kind: "polygon" },
+			geometry: { type: "Polygon", coordinates: [[...combined, combined[0]]] },
+		};
+	}
+	if (combined.length >= 2) {
+		return {
+			type: "Feature",
+			properties: { kind: mode.endsWith("arrow") ? "arrow" : "line" },
+			geometry: { type: "LineString", coordinates: combined },
+		};
+	}
+	if (mode === "draw-point" && combined.length > 0) {
+		return {
+			type: "Feature",
+			properties: { kind: "point" },
+			geometry: { type: "Point", coordinates: combined[0] },
+		};
+	}
+	return null;
+}
+
+/** --- Hook --- */
+
+export function useDrawing(map: maplibregl.Map | null) {
+	const [mode, setMode] = useState<DrawMode>("select");
+	const [features, setFeatures] = useState<GeoJSON.Feature[]>([]);
+	const [sketchTick, setSketchTick] = useState(0);
+
 	const sketchRef = useRef<LngLat[]>([]);
 	const hoverRef = useRef<LngLat | null>(null);
-	const labelRef = useRef<string>("");
 
-	// Berechnet das aktuelle "In-Arbeit" Feature für die Sidebar/Toolbar Anzeige
-	const currentSketchFeature = useMemo(() => {
-		void version; // Reaktivitätstrigger
+	/**
+	 * Schreibt die aktuellen Daten (State & Refs) in die Map-Sources
+	 */
+	const updateSources = useCallback(() => {
+		if (!map || !map.getStyle()) return;
 
-		const coords = sketchRef.current;
-		const hover = hoverRef.current;
+		const srcData = map.getSource(DRAW_DATA_SOURCE_ID) as
+			| maplibregl.GeoJSONSource
+			| undefined;
+		const srcSketch = map.getSource(DRAW_SKETCH_SOURCE_ID) as
+			| maplibregl.GeoJSONSource
+			| undefined;
 
-		if (coords.length === 0) return null;
-
-		const withHover = hover ? [...coords, hover] : coords;
-
-		if (mode === "polygon" && withHover.length >= 3) {
-			return {
-				type: "Feature",
-				geometry: {
-					type: "Polygon",
-					coordinates: [[...withHover, withHover[0]]],
-				},
-				properties: { kind: mode },
-			} as GeoJSON.Feature;
+		if (srcData) {
+			srcData.setData({ type: "FeatureCollection", features });
 		}
 
-		if (withHover.length >= 2) {
-			return {
-				type: "Feature",
-				geometry: {
-					type: "LineString",
-					coordinates: withHover,
-				},
-				properties: { kind: mode },
-			} as GeoJSON.Feature;
+		if (srcSketch) {
+			srcSketch.setData(
+				buildSketchGeoJson({
+					mode,
+					coords: sketchRef.current,
+					hover: hoverRef.current,
+				}),
+			);
 		}
+	}, [map, mode, features]);
 
-		return null;
-	}, [mode, version]);
-
-	const deleteFeature = (id: string) => {
-		dataRef.current.features = dataRef.current.features.filter(
-			(f) => f.properties?.id !== id,
-		);
-		updateSourcesRef.current();
-	};
-
-	/* --- Style & Layer Setup --- */
+	/**
+	 * Initialisierung und "Style-Safe" Re-Injektion der Layer
+	 */
 	useEffect(() => {
 		if (!map) return;
 
-		let cancelled = false;
+		const setupLayers = async () => {
+			// WICHTIG: Wenn der Map-Renderer gerade beschäftigt ist,
+			// warten wir kurz, bis er "idle" ist.
+			if (!map.getStyle() || !map.isStyleLoaded()) return;
 
-		const rehydrate = () => {
-			setGeoJsonSourceData(map, DRAW_DATA_SOURCE_ID, dataRef.current);
+			let needsUpdate = false;
 
-			const sketch = buildSketchGeoJson({
-				mode,
-				coords: sketchRef.current,
-				hover: hoverRef.current,
-			});
-			setGeoJsonSourceData(map, DRAW_SKETCH_SOURCE_ID, sketch);
-
-			setVersion((v) => v + 1);
-		};
-
-		const setup = async () => {
+			// Sources nur hinzufügen, wenn sie wirklich fehlen
 			for (const [id, src] of Object.entries(DRAW_SOURCES)) {
-				if (!map.getSource(id)) map.addSource(id, src);
+				if (!map.getSource(id)) {
+					map.addSource(id, src as maplibregl.SourceSpecification);
+					needsUpdate = true;
+				}
 			}
+
+			// Layer nur hinzufügen, wenn sie wirklich fehlen
 			for (const layer of DRAW_LAYERS) {
-				if (!map.getLayer(layer.id)) map.addLayer(layer);
+				if (!map.getLayer(layer.id)) {
+					map.addLayer(layer as maplibregl.LayerSpecification);
+					needsUpdate = true;
+				}
 			}
-			await ensureArrowIcon(map);
-			rehydrate();
+
+			if (needsUpdate) {
+				await ensureArrowIcon(map);
+				updateSources();
+			}
 		};
 
-		const runSetup = () => {
-			void setup().catch((err: unknown) => {
-				if (!cancelled) console.error("Drawing setup failed:", err);
-			});
-		};
+		// 'styledata' ist zu aggressiv. 'style.load' ist sicherer für
+		// das Wiederherstellen von Layern nach einem Basemap-Wechsel.
+		map.on("style.load", setupLayers);
 
-		if (map.isStyleLoaded()) runSetup();
-		else map.once("load", runSetup);
+		// Initialer Check
+		if (map.isStyleLoaded()) {
+			void setupLayers();
+		}
 
-		map.on("style.load", runSetup);
 		return () => {
-			cancelled = true;
-			map.off("style.load", runSetup);
+			map.off("style.load", setupLayers);
 		};
-	}, [map, mode]);
+	}, [map, updateSources]);
 
-	/* --- Interaction Logic --- */
-	useEffect(() => {
-		if (!map) return;
+	/**
+	 * Skizze abschließen
+	 */
+	const commit = useCallback(() => {
+		const coords = sketchRef.current;
+		if (!coords.length || mode === "select") return;
 
-		const updateSources = () => {
-			setGeoJsonSourceData(map, DRAW_DATA_SOURCE_ID, dataRef.current);
+		const [usage, kind] = mode.split("-") as [ToolUsage, DrawKind];
+		const baseProps = { id: newId(), kind, usage, timestamp: Date.now() };
 
-			const sketch = buildSketchGeoJson({
-				mode,
-				coords: sketchRef.current,
-				hover: hoverRef.current,
-			});
-			setGeoJsonSourceData(map, DRAW_SKETCH_SOURCE_ID, sketch);
+		let newFeature: GeoJSON.Feature | null = null;
 
-			setVersion((v) => v + 1);
-		};
-
-		updateSourcesRef.current = updateSources;
-
-		const commit = (kind: DrawKind) => {
-			const coords = sketchRef.current;
-			if (!coords.length) return;
-
-			const baseProps = { id: newId(), kind, timestamp: Date.now() };
-
-			if (kind === "point") {
-				dataRef.current.features.push({
-					type: "Feature",
-					properties: { ...baseProps, label: labelRef.current || undefined },
-					geometry: { type: "Point", coordinates: coords[0] },
-				});
-			} else if (kind === "line" || kind === "arrow") {
-				if (coords.length < 2) return;
-				dataRef.current.features.push({
+		if (kind === "point") {
+			newFeature = {
+				type: "Feature",
+				properties: baseProps,
+				geometry: { type: "Point", coordinates: coords[0] },
+			};
+		} else if (kind === "line" || kind === "arrow") {
+			if (coords.length >= 2) {
+				newFeature = {
 					type: "Feature",
 					properties: baseProps,
 					geometry: { type: "LineString", coordinates: coords },
-				});
-			} else if (kind === "polygon") {
-				if (coords.length < 3) return;
-				dataRef.current.features.push({
+				};
+			}
+		} else if (kind === "polygon") {
+			if (coords.length >= 3) {
+				newFeature = {
 					type: "Feature",
 					properties: baseProps,
-					geometry: {
-						type: "Polygon",
-						coordinates: [[...coords, coords[0]]],
-					},
-				});
+					geometry: { type: "Polygon", coordinates: [[...coords, coords[0]]] },
+				};
 			}
+		}
 
-			sketchRef.current = [];
-			hoverRef.current = null;
-			updateSources();
-		};
+		if (newFeature) {
+			setFeatures((prev) => [...prev, newFeature as GeoJSON.Feature]);
+		}
 
-		commitRef.current = commit;
+		sketchRef.current = [];
+		hoverRef.current = null;
+		setSketchTick((v) => v + 1);
+		// Wir rufen updateSources hier nicht direkt auf, da useEffect[features] es übernimmt
+	}, [mode]);
+
+	// Triggert Map-Update bei State-Änderung (Biome-konform)
+	useEffect(() => {
+		updateSources();
+	}, [updateSources]);
+
+	/**
+	 * Map Interaktionen
+	 */
+	useEffect(() => {
+		if (!map) return;
 
 		const onClick = (e: maplibregl.MapMouseEvent) => {
 			if (mode === "select") return;
+			sketchRef.current = [...sketchRef.current, [e.lngLat.lng, e.lngLat.lat]];
 
-			const pt: LngLat = [e.lngLat.lng, e.lngLat.lat];
-			sketchRef.current = [...sketchRef.current, pt];
-
-			if (mode === "point") commit("point");
-			else updateSources();
-		};
-
-		const onDblClick = (e: maplibregl.MapMouseEvent) => {
-			if (mode !== "select") {
-				e.preventDefault();
-				commit(mode as DrawKind);
+			if (mode === "draw-point") {
+				commit();
+			} else {
+				setSketchTick((v) => v + 1);
+				updateSources(); // Manuelles Update für die Sketch-Source
 			}
 		};
 
 		const onMouseMove = (e: maplibregl.MapMouseEvent) => {
 			if (
 				mode === "select" ||
-				mode === "point" ||
+				mode === "draw-point" ||
 				sketchRef.current.length === 0
 			)
 				return;
-
 			hoverRef.current = [e.lngLat.lng, e.lngLat.lat];
-			updateSources();
+			setSketchTick((v) => v + 1);
+			updateSources(); // Manuelles Update für die Sketch-Source
 		};
 
-		const onKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				sketchRef.current = [];
-				hoverRef.current = null;
-				updateSources();
-			}
-			if (e.key === "Enter" && mode !== "select") {
-				commit(mode as DrawKind);
-			}
+		const onDblClick = (e: maplibregl.MapMouseEvent) => {
+			if (mode === "select") return;
+			e.preventDefault();
+			commit();
 		};
 
 		map.on("click", onClick);
-		map.on("dblclick", onDblClick);
 		map.on("mousemove", onMouseMove);
-		window.addEventListener("keydown", onKeyDown);
+		map.on("dblclick", onDblClick);
+		map.getCanvas().style.cursor = mode === "select" ? "" : "crosshair";
 
 		return () => {
 			map.off("click", onClick);
-			map.off("dblclick", onDblClick);
 			map.off("mousemove", onMouseMove);
-			window.removeEventListener("keydown", onKeyDown);
+			map.off("dblclick", onDblClick);
 		};
-	}, [map, mode]);
+	}, [map, mode, commit, updateSources]);
+
+	/** --- Selectors --- */
+
+	const allFeatures = useMemo(() => {
+		return [...features].sort(
+			(a, b) => (b.properties?.timestamp ?? 0) - (a.properties?.timestamp ?? 0),
+		);
+	}, [features]);
+
+	const measurements = useMemo(
+		() => allFeatures.filter((f) => f.properties?.usage === "measure"),
+		[allFeatures],
+	);
+
+	const sketches = useMemo(
+		() => allFeatures.filter((f) => f.properties?.usage === "draw"),
+		[allFeatures],
+	);
+
+	const currentSketch = useMemo(() => {
+		// sketchTick wird hier aktiv genutzt, um Biome zufriedenzustellen
+		return sketchTick >= 0
+			? buildCurrentSketchFeature({
+					mode,
+					coords: sketchRef.current,
+					hover: hoverRef.current,
+				})
+			: null;
+	}, [sketchTick, mode]);
+
+	/** --- Public API --- */
 
 	return {
 		mode,
-		setMode,
-		currentSketch: currentSketchFeature,
-		version,
-		deleteFeature,
+		setMode: (m: DrawMode) => {
+			sketchRef.current = [];
+			hoverRef.current = null;
+			setMode(m);
+			setSketchTick((v) => v + 1);
+			updateSources();
+		},
+
+		allFeatures,
+		measurements,
+		sketches,
+		currentSketch,
 		hasSketch: sketchRef.current.length > 0,
-		hasFeatures: dataRef.current.features.length > 0,
-		allFeatures: dataRef.current.features,
-		sketchCount: sketchRef.current.length,
+		hasFeatures: features.length > 0,
 
 		undoLast: () => {
-			sketchRef.current = sketchRef.current.slice(0, -1);
-			hoverRef.current = null;
-			updateSourcesRef.current();
+			sketchRef.current.pop();
+			setSketchTick((v) => v + 1);
+			updateSources();
 		},
-
-		finish: () => {
-			if (mode !== "select") {
-				commitRef.current(mode as DrawKind);
-				setMode("select");
-			}
-		},
-
+		finish: commit,
 		cancel: () => {
 			sketchRef.current = [];
 			hoverRef.current = null;
-			setMode("select");
-			updateSourcesRef.current();
+			setSketchTick((v) => v + 1);
+			updateSources();
 		},
-
 		clearAll: () => {
-			dataRef.current.features = [];
+			setFeatures([]);
 			sketchRef.current = [];
 			hoverRef.current = null;
+			setSketchTick((v) => v + 1);
 			setMode("select");
-			updateSourcesRef.current();
+			// updateSources wird durch useEffect[features] getriggert
+		},
+		deleteFeature: (id: string) => {
+			setFeatures((prev) => prev.filter((f) => f.properties?.id !== id));
 		},
 	};
 }

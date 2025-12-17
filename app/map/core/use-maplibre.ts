@@ -160,23 +160,22 @@ function applyBasemapOpacity(
 	opacity: number,
 ): void {
 	const o = clamp01(opacity);
-
 	const overlayLayerIds = new Set((overlays.layers ?? []).map((l) => l.id));
 
+	// WICHTIG: Prüfen, ob der Style überhaupt schon bereit ist
 	const style = map.getStyle();
-	const layers = style?.layers ?? [];
+	if (!style || !style.layers) return;
 
-	for (const l of layers) {
-		// keep overlays fully visible
+	for (const l of style.layers) {
 		if (overlayLayerIds.has(l.id)) continue;
-
-		// keep app layers fully visible
 		if (isAppLayer(l.id)) continue;
 
-		setLayerOpacity(map, l.id, l.type, o);
+		// Zusätzlicher Check: Existiert der Layer wirklich noch im aktuellen Map-Zustand?
+		if (map.getLayer(l.id)) {
+			setLayerOpacity(map, l.id, l.type, o);
+		}
 	}
 }
-
 export function useMapLibre({
 		containerRef,
 		center,

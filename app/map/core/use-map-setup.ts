@@ -16,9 +16,6 @@ export function useMapSetup(map: MapLibreMap | null) {
 
 			// 2. Such-Marker Layer sicherstellen
 			ensureSearchMarkerLayer(map);
-
-			// 3. Optional: Weitere System-Layer (z.B. Hover-Effekte)
-			console.log("Map infrastructure re-initialized");
 		};
 
 		// Initiales Setup
