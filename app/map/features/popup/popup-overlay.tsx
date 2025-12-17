@@ -15,11 +15,12 @@ type LegendItem = {
 };
 
 function normalizePopupLayerId(raw: string): string {
-	// MapLibre: oft werden aus einem Thema mehrere Layer mit Suffix
-	// "-fill", "-outline", "-label" etc. gemacht.
-	return raw.replace(/-(fill|outline|label)$/i, "");
+	// Entfernt Suffixe wie -fill, -outline, -label UND -cluster, -cluster-count
+	return raw.replace(
+		/-(fill|outline|label|cluster|cluster-count|clusters)$/i,
+		"",
+	);
 }
-
 function getPropsRec(f: maplibregl.MapGeoJSONFeature): Record<string, unknown> {
 	return isRecord(f.properties) ? f.properties : {};
 }
@@ -354,20 +355,28 @@ export function PopupOverlay(props: {
 
 								<div className="divide-y">
 									{s.features.map((f, idx) => {
+										const propsRec = getPropsRec(f);
+
+										if (f.properties?.cluster) {
+											propsRec.zoom_hint = "Bitte näher zoomen für Details";
+										}
+
 										const rawLayerId =
 											f.layer?.id ?? s.layerIds[0] ?? "unknown-layer";
 										const normalizedLayerId = normalizePopupLayerId(rawLayerId);
 
 										const cfg = POPUP_CONFIG[normalizedLayerId] ?? null;
+										const fallbackTitle = getFeatureTitle(f, idx);
 
-										const propsRec = getPropsRec(f);
-
-										const fallbackTitle = getFeatureTitle(f, idx); // wenn du das schon hesch
-										const title = getConfiguredTitle(
+										// Titel-Logik optimieren
+										let title = getConfiguredTitle(
 											cfg,
 											propsRec,
 											fallbackTitle,
 										);
+										if (f.properties?.cluster) {
+											title = `${propsRec.point_count} Objekte (Cluster)`;
+										}
 
 										const fields = (cfg?.fields ?? [])
 											.slice()

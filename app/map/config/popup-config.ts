@@ -50,6 +50,26 @@ const POLYGONS_POPUP: PopupLayerConfig = {
 	],
 };
 
+const CLUSTER_POPUP: PopupLayerConfig = {
+	// Wir nutzen ein Feld, um die Anzahl anzuzeigen,
+	// und einen statischen Hinweis im Titel.
+	titleKey: "point_count",
+	fields: [
+		{
+			key: "point_count",
+			label: "Enthaltene Objekte",
+			order: 1,
+			format: "int",
+		},
+		{
+			key: "zoom_hint",
+			label: "Hinweis",
+			order: 2,
+			format: "text",
+		},
+	],
+};
+
 export const POPUP_CONFIG: Record<string, PopupLayerConfig> = {
 	// Points
 	"dummy-points": POINTS_POPUP,
@@ -63,4 +83,7 @@ export const POPUP_CONFIG: Record<string, PopupLayerConfig> = {
 	"dummy-polygons": POLYGONS_POPUP,
 	"dummy-polygons-outline": POLYGONS_POPUP,
 	"dummy-polygons-label": POLYGONS_POPUP,
+
+	"dummy-points-cluster": CLUSTER_POPUP,
+	"dummy-points-cluster-count": CLUSTER_POPUP,
 };

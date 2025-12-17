@@ -132,7 +132,6 @@ export function useMapPopup(
 		[opts?.interactiveSourceIds],
 	);
 
-	// “wie vorher”: default 0 => exakt Klickpixel
 	const tolerancePx = opts?.tolerancePx ?? 0;
 
 	useEffect(() => {
@@ -141,7 +140,6 @@ export function useMapPopup(
 
 		const onClick = (e: maplibregl.MapMouseEvent) => {
 			const p = e.point;
-
 			const bbox: [maplibregl.PointLike, maplibregl.PointLike] =
 				tolerancePx > 0
 					? [
@@ -150,54 +148,65 @@ export function useMapPopup(
 						]
 					: [p, p];
 
+			const style = map.getStyle();
+			const existingLayerIds = style?.layers?.map((l) => l.id) ?? [];
+
+			const validLayerIds = interactiveLayerIds?.filter((id) =>
+				existingLayerIds.includes(id),
+			);
+
 			const qOpts: maplibregl.QueryRenderedFeaturesOptions | undefined =
-				interactiveLayerIds ? { layers: interactiveLayerIds } : undefined;
+				validLayerIds && validLayerIds.length > 0
+					? { layers: validLayerIds }
+					: interactiveLayerIds
+						? { layers: [] }
+						: undefined;
 
 			let hits = dedupe(
 				map.queryRenderedFeatures(bbox, qOpts).filter(isUsefulFeature),
 			);
 
-			const raw = map.queryRenderedFeatures(bbox, qOpts);
-
-			// 🔎 DEBUG: alles sehen
-			console.groupCollapsed("[popup] raw hits");
-			for (const f of raw) {
-				console.log({
-					layerId: f.layer?.id,
-					source: f.source,
-					sourceLayer: f.sourceLayer,
-					id: f.id,
-					geometry: f.geometry?.type,
-					properties: f.properties,
-				});
-			}
-			console.groupEnd();
-
 			if (interactiveSourceIds) {
-				// Basemap raus: nur Features aus deinen Sources zulassen
 				hits = hits.filter((f) => {
 					const src = typeof f.source === "string" ? f.source : null;
 					return src ? interactiveSourceIds.includes(src) : false;
 				});
 			}
 
-			console.groupCollapsed("[popup] after source filter");
-			for (const f of hits) {
-				console.log({
-					layerId: f.layer?.id,
-					source: f.source,
-					sourceLayer: f.sourceLayer,
-					id: f.id,
-				});
-			}
-			console.groupEnd();
-
 			if (hits.length === 0) {
 				setState({ open: false });
 				return;
 			}
 
-			// wie vorher: 1 Treffer => nur der, Überlagerung => alle
+			// --- CLUSTER LOGIK FIX ---
+			const clusterFeature = hits.find((f) => f.properties?.cluster);
+			if (clusterFeature && clusterFeature.geometry.type === "Point") {
+				const sourceId = clusterFeature.source;
+				const clusterId = clusterFeature.id as number;
+				const coords = (clusterFeature.geometry as GeoJSON.Point)
+					.coordinates as [number, number];
+
+				const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
+
+				if (source && typeof source.getClusterExpansionZoom === "function") {
+					// Fix: Use Promise-based API
+					source
+						.getClusterExpansionZoom(clusterId)
+						.then((zoom) => {
+							map.easeTo({
+								center: coords,
+								zoom: zoom + 0.5,
+							});
+						})
+						.catch(() => {
+							// Ignore errors silently
+						});
+
+					setState({ open: false });
+					return;
+				}
+			}
+
 			const selected = hits.length === 1 ? [hits[0]] : hits;
 
 			setState({

@@ -1,28 +1,13 @@
-// app/map/features/toc/sortable-toc-item.tsx
 "use client";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Tag } from "lucide-react";
+import { GripVertical, Tag } from "lucide-react"; // GripVertical ist oft besser für Mobile
 
 import { Slider } from "@/app/components/ui/slider";
 import { Switch } from "@/app/components/ui/switch";
 import { cn } from "@/app/lib/utils";
 import type { TocItemConfig, TocItemId } from "./toc-types";
-
-function DragHandleDots() {
-	return (
-		<span className="grid grid-cols-2 gap-0.5">
-			{Array.from({ length: 6 }).map((_, i) => (
-				<span
-					// biome-ignore lint/suspicious/noArrayIndexKey: static dots
-					key={i}
-					className="h-1 w-1 rounded-full bg-muted-foreground/60"
-				/>
-			))}
-		</span>
-	);
-}
 
 export function SortableTocItem(props: {
 	item: TocItemConfig;
@@ -48,6 +33,8 @@ export function SortableTocItem(props: {
 	const style: React.CSSProperties = {
 		transform: CSS.Transform.toString(transform),
 		transition,
+		zIndex: isDragging ? 50 : "auto", // Wichtig für Mobile-Overlays
+		position: "relative",
 	};
 
 	const hasLabels = (item.labelLayerIds?.length ?? 0) > 0;
@@ -57,53 +44,64 @@ export function SortableTocItem(props: {
 			ref={setNodeRef}
 			style={style}
 			className={cn(
-				"rounded-md border border-sidebar-border bg-sidebar p-2",
-				isDragging && "opacity-80",
+				"rounded-xl border border-sidebar-border bg-sidebar p-3 mb-1 shadow-sm transition-shadow",
+				isDragging &&
+					"opacity-60 shadow-xl border-primary/50 ring-2 ring-primary/20",
 			)}
 		>
-			<div className="flex items-start gap-2">
+			<div className="flex items-center gap-3">
+				{/* 1. Vergrößerter Drag-Handle für bessere Touch-Bedienung */}
 				<button
 					type="button"
 					className={cn(
-						"mt-0.5 inline-flex h-8 w-6 shrink-0 items-center justify-center rounded-sm",
-						"opacity-60 hover:bg-muted/40 hover:opacity-100",
-						"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+						"h-10 w-8 shrink-0 flex items-center justify-center rounded-lg -ml-1",
+						"text-muted-foreground/40 hover:text-primary hover:bg-muted/60 transition-colors",
+						"cursor-grab active:cursor-grabbing touch-none", // touch-none verhindert Browser-Scrollen während Drag
 					)}
 					aria-label="Layer-Reihenfolge ändern"
-					title="Ziehen zum Umordnen"
 					{...attributes}
 					{...listeners}
 				>
-					<DragHandleDots />
+					<GripVertical className="h-5 w-5" />
 				</button>
 
-				<div className="min-w-0 flex-1">
+				{/* 2. MIN-W-0 ist der Lebensretter für das Layout! */}
+				<div className="min-w-0 flex-1 flex flex-col gap-1">
 					<div className="flex items-center justify-between gap-2">
-						<div className="truncate text-sm">{item.title}</div>
-						<Switch checked={isOn} onCheckedChange={(v) => setVisible(item.id, v)} />
+						<span className="truncate text-sm font-semibold text-foreground tracking-tight">
+							{item.title}
+						</span>
+						<Switch
+							checked={isOn}
+							onCheckedChange={(v) => setVisible(item.id, v)}
+							className="scale-90" // Etwas kleiner für Mobile-Ästhetik
+						/>
 					</div>
 
-					<div className="mt-1 flex items-center justify-between gap-2">
+					{/* Untere Reihe: Labels und Opacity-Wert */}
+					<div className="flex items-center justify-between h-5">
 						<button
 							type="button"
 							className={cn(
-								"inline-flex items-center gap-1 text-[11px] text-muted-foreground",
-								"hover:text-foreground disabled:opacity-50",
+								"inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors",
+								isOn && hasLabels
+									? "text-primary hover:text-primary/80"
+									: "text-muted-foreground/40",
 							)}
 							disabled={!isOn || !hasLabels}
 							onClick={() => setLabelsVisible(item.id, !labelsOn)}
-							title="Labels"
 						>
-							<Tag className="h-3.5 w-3.5" />
-							{labelsOn ? "Labels on" : "Labels off"}
+							<Tag className={cn("h-3 w-3", labelsOn && "fill-current")} />
+							{labelsOn ? "Labels an" : "Labels aus"}
 						</button>
 
-						<div className="text-[11px] text-muted-foreground">
+						<span className="text-[10px] font-mono font-bold text-muted-foreground/60 tabular-nums">
 							{Math.round(op * 100)}%
-						</div>
+						</span>
 					</div>
 
-					<div className="mt-2">
+					{/* Slider-Container mit mehr Platz für Daumen */}
+					<div className="mt-2 py-1">
 						<Slider
 							value={[op]}
 							onValueChange={(v) => setOpacity(item.id, v[0] ?? 1)}

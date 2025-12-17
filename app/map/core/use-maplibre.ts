@@ -68,25 +68,18 @@ async function loadOverlayStyle(): Promise<OverlayStyle> {
 	}
 }
 
-function findFirstSymbolLayerId(map: MaplibreMap): string | undefined {
-	const style = map.getStyle();
-	const layers = style?.layers ?? [];
-	return layers.find((l) => l.type === "symbol")?.id;
-}
-
 function applyOverlays(map: MaplibreMap, overlays: OverlayStyle): void {
 	const sources = overlays.sources ?? {};
 	for (const [id, spec] of Object.entries(sources)) {
 		if (!map.getSource(id)) map.addSource(id, spec);
 	}
 
-	const beforeId = findFirstSymbolLayerId(map);
-
+	// ÄNDERUNG: Wir schieben sie NICHT mehr unter den firstSymbolLayer.
+	// Wir fügen sie einfach hinzu (sie landen am Ende/Top).
 	const layers = overlays.layers ?? [];
 	for (const layer of layers) {
 		if (map.getLayer(layer.id)) continue;
-		if (beforeId) map.addLayer(layer, beforeId);
-		else map.addLayer(layer);
+		map.addLayer(layer); // Einfach oben drauf
 	}
 }
 

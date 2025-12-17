@@ -2,6 +2,7 @@
 
 import type { OverlayDefinition } from "@/app/map/overlays/overlay-definition";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { reorderAppLayers } from "../core/layer-order"; // Importieren
 
 export function registerOverlays(
 	map: MaplibreMap,
@@ -11,6 +12,9 @@ export function registerOverlays(
 		if (!map.getSource(id)) map.addSource(id, source);
 	}
 	for (const layer of def.layers) {
-		if (!map.getLayer(layer.id)) map.addLayer(layer);
+		if (!map.getLayer(layer.id)) {
+			map.addLayer(layer);
+		}
 	}
+	reorderAppLayers(map);
 }

@@ -1,50 +1,49 @@
-import type { Map as MapLibreMap } from "maplibre-gl";
 import type { GeocodingFeature } from "@/app/lib/maptiler/geocoding";
+import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { SEARCH_MARKER_SOURCE_ID } from "./search-marker";
 
-type GeoJSONPoint = {
-	type: "FeatureCollection";
-	features: Array<{
-		type: "Feature";
-		geometry: { type: "Point"; coordinates: [number, number] };
-		properties: Record<string, unknown>;
-	}>;
-};
-
+/**
+ * Zentriert die Karte auf das Ergebnis und setzt den Marker
+ */
 export function applySearchResult(map: MapLibreMap, f: GeocodingFeature) {
 	const [lng, lat] = f.center;
 
-	// Fly
 	map.flyTo({
 		center: [lng, lat],
 		zoom: 15,
 		essential: true,
+		padding: { top: 50, bottom: 50, left: 50, right: 50 },
 	});
 
-	// Marker setzen
-	const src = map.getSource(SEARCH_MARKER_SOURCE_ID);
-	if (!src) return;
+	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as
+		| GeoJSONSource
+		| undefined;
 
-	const data: GeoJSONPoint = {
-		type: "FeatureCollection",
-		features: [
-			{
-				type: "Feature",
-				geometry: { type: "Point", coordinates: [lng, lat] },
-				properties: { place_name: f.place_name, id: f.id },
-			},
-		],
-	};
+	if (source && typeof source.setData === "function") {
+		source.setData({
+			type: "FeatureCollection",
+			features: [
+				{
+					type: "Feature",
+					geometry: { type: "Point", coordinates: [lng, lat] },
+					properties: { place_name: f.place_name, id: f.id },
+				},
+			],
+		});
+	}
+}
 
-	// MapLibre geojson-source: setData exists, aber nicht sauber typisiert
-	// -> Typ-sicher über Narrowing auf unbekannt und check
-	const s = src as unknown;
-	if (
-		typeof s === "object" &&
-		s !== null &&
-		"setData" in s &&
-		typeof (s as { setData: (d: unknown) => void }).setData === "function"
-	) {
-		(s as { setData: (d: unknown) => void }).setData(data);
+/**
+ * Entfernt den Suchmarker von der Karte
+ */
+export function clearSearchMarker(map: MapLibreMap) {
+	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as
+		| GeoJSONSource
+		| undefined;
+	if (source && typeof source.setData === "function") {
+		source.setData({
+			type: "FeatureCollection",
+			features: [],
+		});
 	}
 }

@@ -1,4 +1,3 @@
-// app/map/features/sidebar/toc-panel.tsx
 "use client";
 
 import { MAP_CONFIG } from "@/app/map/config/map-config";
@@ -11,6 +10,7 @@ import {
 	type DragEndEvent,
 	KeyboardSensor,
 	PointerSensor,
+	TouchSensor, // Wichtig für Mobile
 	useSensor,
 	useSensors,
 } from "@dnd-kit/core";
@@ -33,13 +33,11 @@ export function TocPanel() {
 	const setOpacity = useTocStore((s) => s.setOpacity);
 	const dynamicItems = useTocStore((s) => s.dynamicItems);
 
-	// Kombinierte Liste aller Items
 	const allItems = useMemo(
 		() => [...(MAP_CONFIG.tocItems as TocItemConfig[]), ...dynamicItems],
 		[dynamicItems],
 	);
 
-	// Sortierte Liste basierend auf der 'order' im Store
 	const orderedItems = useMemo(() => {
 		if (!order.length) return allItems;
 		const itemMap = new Map(allItems.map((it) => [it.id, it]));
@@ -47,13 +45,17 @@ export function TocPanel() {
 			.map((id) => itemMap.get(id))
 			.filter(Boolean) as TocItemConfig[];
 
-		// Items hinzufügen, die noch nicht in 'order' sind (z.B. neu registrierte dynamicItems)
 		const remaining = allItems.filter((it) => !order.includes(it.id));
 		return [...sorted, ...remaining];
 	}, [allItems, order]);
 
 	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+		// PointerSensor für Desktop
+		useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+		// TouchSensor für Mobile (verhindert Scroll-Konflikte)
+		useSensor(TouchSensor, {
+			activationConstraint: { delay: 250, tolerance: 5 },
+		}),
 		useSensor(KeyboardSensor, {
 			coordinateGetter: sortableKeyboardCoordinates,
 		}),
@@ -73,14 +75,15 @@ export function TocPanel() {
 
 	if (orderedItems.length === 0) {
 		return (
-			<div className="p-8 text-center text-sm text-muted-foreground">
+			<div className="p-8 text-center text-sm text-muted-foreground w-full">
 				Keine Ebenen vorhanden
 			</div>
 		);
 	}
 
 	return (
-		<div className="p-4 space-y-2">
+		/* WICHTIG: overflow-x-hidden und min-w-0 verhindern das Aufblähen der Sidebar */
+		<div className="w-full flex flex-col min-w-0 overflow-x-hidden">
 			<DndContext
 				sensors={sensors}
 				collisionDetection={closestCenter}
@@ -90,20 +93,22 @@ export function TocPanel() {
 					items={orderedItems.map((it) => it.id)}
 					strategy={verticalListSortingStrategy}
 				>
-					{orderedItems.map((item) => (
-						<SortableTocItem
-							key={item.id}
-							item={item}
-							isOn={visible[item.id] ?? item.defaultVisible ?? true}
-							labelsOn={
-								labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false
-							}
-							op={opacity[item.id] ?? item.defaultOpacity ?? 1}
-							setVisible={setVisible}
-							setLabelsVisible={setLabelsVisible}
-							setOpacity={setOpacity}
-						/>
-					))}
+					<div className="flex flex-col gap-2 w-full min-w-0">
+						{orderedItems.map((item) => (
+							<SortableTocItem
+								key={item.id}
+								item={item}
+								isOn={visible[item.id] ?? item.defaultVisible ?? true}
+								labelsOn={
+									labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false
+								}
+								op={opacity[item.id] ?? item.defaultOpacity ?? 1}
+								setVisible={setVisible}
+								setLabelsVisible={setLabelsVisible}
+								setOpacity={setOpacity}
+							/>
+						))}
+					</div>
 				</SortableContext>
 			</DndContext>
 		</div>

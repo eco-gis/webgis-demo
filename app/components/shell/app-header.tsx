@@ -17,14 +17,14 @@ export function AppHeader({
 		return (
 			<header
 				className={cn(
-					"sticky top-0 z-50 flex h-14 items-center gap-4 border-b border-border/40 bg-background/70 px-4 backdrop-blur-md transition-all",
+					"sticky top-0 z-50 flex h-14 w-full items-center gap-2 md:gap-4 border-b border-border/40 bg-background/80 px-3 md:px-4 backdrop-blur-md transition-all",
 					className,
 				)}
 			>
-				{/* LINKER BEREICH: Branding & Trigger */}
-				<div className="flex shrink-0 items-center gap-3">
+				<div className="flex shrink-0 items-center gap-2 md:gap-3">
 					<SidebarTrigger
-						className="group h-9 w-9 border border-transparent hover:border-border/50 hover:bg-background/80 hover:shadow-sm transition-all"
+						/* Fix: hover:bg-muted statt hover:bg-background */
+						className="group h-10 w-10 md:h-9 md:w-9 border border-transparent hover:border-border/50 hover:bg-muted transition-all"
 						aria-label="Menü umschalten"
 					>
 						<Menu className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
@@ -32,24 +32,20 @@ export function AppHeader({
 
 					<div className="h-4 w-px bg-border/60 mx-1 hidden sm:block" />
 
-					<div className="flex flex-col gap-0 select-none">
-						<span className="text-xs font-bold leading-none tracking-tight text-foreground/90 uppercase">
+					<div className="flex flex-col gap-0 select-none overflow-hidden">
+						<span className="text-[11px] md:text-xs font-bold leading-none tracking-tight text-foreground/90 uppercase truncate">
 							Steinkauz Monitoring
 						</span>
-						<span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
-							im Kanton Schaffhausen
+						<span className="text-[9px] md:text-[10px] text-muted-foreground font-medium whitespace-nowrap hidden xs:block">
+							Schaffhausen
 						</span>
 					</div>
 				</div>
 
-				{/* MITTLERER BEREICH: Spacer (Drückt die Suche nach rechts) */}
-				<div className="flex-1" />
+				<div className="flex-1 min-w-2.5" />
 
-				{/* RECHTER BEREICH: Suche */}
-				<div className="flex shrink-0 items-center justify-end">
-					<div className="transition-all focus-within:w-96">
-						<SearchHeader map={map} />
-					</div>
+				<div className="flex shrink items-center justify-end max-w-50 md:max-w-none">
+					<SearchHeader map={map} />
 				</div>
 			</header>
 		);

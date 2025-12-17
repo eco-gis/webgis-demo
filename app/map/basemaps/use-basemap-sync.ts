@@ -34,12 +34,18 @@ async function loadOverlayStyle(): Promise<OverlayStyle> {
 }
 
 function applyOverlays(map: MaplibreMap, overlays: OverlayStyle): void {
+	// 1. Quellen hinzufügen
 	for (const [id, spec] of Object.entries(overlays.sources ?? {})) {
 		if (!map.getSource(id)) map.addSource(id, spec);
 	}
+	// 2. Layer hinzufügen (sie landen initial am Ende des Stacks)
 	for (const layer of overlays.layers ?? []) {
-		if (!map.getLayer(layer.id)) map.addLayer(layer);
+		if (!map.getLayer(layer.id)) {
+			map.addLayer(layer);
+		}
 	}
+	// 3. SOFORT sortieren, sobald alle Layer da sind
+	reorderAppLayers(map);
 }
 
 function waitForStyleLoad(map: MaplibreMap): Promise<void> {

@@ -1,7 +1,11 @@
 "use client";
 
 import { AppHeader } from "@/app/components/shell/app-header";
-import { SidebarInset, SidebarProvider } from "@/app/components/ui/sidebar";
+import {
+	SidebarInset,
+	SidebarProvider,
+	SidebarTrigger,
+} from "@/app/components/ui/sidebar";
 import type { useDrawing } from "@/app/map/features/drawing/use-drawing";
 import { AppSidebar } from "@/app/map/features/sidebar/map-sidebar";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -15,20 +19,18 @@ interface AppShellProps {
 
 export function AppShell({ children, map, drawing }: AppShellProps) {
 	return (
-		<SidebarProvider
-			style={
-				{
-					"--sidebar-width": "360px",
-					"--sidebar-width-mobile": "320px",
-				} as React.CSSProperties
-			}
-		>
+		<SidebarProvider>
 			<AppSidebar map={map} drawing={drawing} />
 
-			<SidebarInset className="flex h-dvh flex-col">
+			<SidebarInset className="flex flex-col h-dvh w-full overflow-hidden relative">
 				<AppHeader map={map} />
 
-				<div className="min-h-0 flex-1">{children}</div>
+				{/* Trigger Positionierung */}
+				<div className="absolute left-4 top-20 z-40 md:hidden pointer-events-none">
+					<SidebarTrigger className="h-12 w-12 pointer-events-auto rounded-2xl bg-background shadow-xl border-2 border-primary/20 text-primary" />
+				</div>
+
+				<main className="flex-1 relative overflow-hidden">{children}</main>
 			</SidebarInset>
 		</SidebarProvider>
 	);
