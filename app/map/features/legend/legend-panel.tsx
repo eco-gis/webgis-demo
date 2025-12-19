@@ -7,6 +7,11 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/app/components/ui/card";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/app/components/ui/popover";
 import { ScrollArea } from "@/app/components/ui/scroll-area";
 import {
 	Sheet,
@@ -23,13 +28,20 @@ import type {
 	TocItemConfig,
 	TocLegendItem,
 } from "@/app/map/features/toc/toc-types";
-import { AlertCircle, Image as ImageIcon, List } from "lucide-react";
+import DOMPurify from "dompurify";
+import {
+	AlertCircle,
+	ExternalLink,
+	ImageIcon,
+	Info,
+	List,
+	Loader2,
+} from "lucide-react";
 import type maplibregl from "maplibre-gl";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
-// --- Extended Types (No more 'any') ---
-
+// --- Types ---
 interface ExtendedTocItem extends TocItemConfig {
 	legendItems?: readonly TocLegendItem[];
 	legendUrl?: string;
@@ -57,8 +69,7 @@ type LegendSection = VectorSection | ImageSection;
 type LegendPanelVariant = "sidebar" | "floating";
 type Expr = readonly unknown[];
 
-// --- Type Guards ---
-
+// --- Helpers ---
 function isNonEmptyString(x: unknown): x is string {
 	return typeof x === "string" && x.trim().length > 0;
 }
@@ -66,8 +77,6 @@ function isNonEmptyString(x: unknown): x is string {
 function isVectorSection(s: LegendSection): s is VectorSection {
 	return s.kind === "vector";
 }
-
-// --- Helpers ---
 
 function swatchKey(sw: LegendItem["swatch"]): string {
 	if (sw.kind === "polygon")
@@ -99,9 +108,9 @@ function getPaintValue(
 function Swatch({ swatch }: { swatch: LegendItem["swatch"] }) {
 	if (swatch.kind === "circle" || swatch.kind === "symbol") {
 		return (
-			<div className="flex h-5 w-5 shrink-0 items-center justify-center">
+			<div className="flex h-4 w-4 shrink-0 items-center justify-center">
 				<span
-					className="h-3 w-3 rounded-full border border-border/40"
+					className="h-2.5 w-2.5 rounded-full border border-border/40 shadow-sm"
 					style={{ backgroundColor: swatch.value }}
 				/>
 			</div>
@@ -109,9 +118,9 @@ function Swatch({ swatch }: { swatch: LegendItem["swatch"] }) {
 	}
 	if (swatch.kind === "line") {
 		return (
-			<div className="flex h-5 w-5 shrink-0 items-center justify-center">
+			<div className="flex h-4 w-4 shrink-0 items-center justify-center">
 				<span
-					className="h-1 w-4 rounded-full"
+					className="h-1 w-3.5 rounded-full"
 					style={{ backgroundColor: swatch.value }}
 				/>
 			</div>
@@ -119,14 +128,14 @@ function Swatch({ swatch }: { swatch: LegendItem["swatch"] }) {
 	}
 	if (swatch.kind === "polygon") {
 		return (
-			<div className="relative h-5 w-5 shrink-0 overflow-hidden rounded border border-border/30">
+			<div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-[2px] border border-border/30 shadow-sm">
 				<span
 					className="absolute inset-0"
-					style={{ backgroundColor: swatch.value.fill, opacity: 0.8 }}
+					style={{ backgroundColor: swatch.value.fill }}
 				/>
 				{swatch.value.outline && (
 					<span
-						className="absolute inset-0 border-[1.5px]"
+						className="absolute inset-0 border"
 						style={{ borderColor: swatch.value.outline }}
 					/>
 				)}
@@ -137,49 +146,132 @@ function Swatch({ swatch }: { swatch: LegendItem["swatch"] }) {
 }
 
 function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
+	const [htmlContent, setHtmlContent] = useState<string | null>(null);
+	const [legendImage, setLegendImage] = useState<string | null>(null);
+	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(false);
-	const [retryCount, setRetryCount] = useState(0);
 
-	const handleError = () => {
-		// Fallback für Swisstopo Suffixe
-		if (url.includes(".fill_de") && retryCount === 0) {
-			setRetryCount(1);
+	const sanitizedHtml = useMemo(() => {
+		if (!htmlContent) return "";
+		return DOMPurify.sanitize(htmlContent, {
+			ADD_ATTR: ["target"],
+		});
+	}, [htmlContent]);
+
+	const isSwisstopoRest =
+		url.includes("geo.admin.ch") && url.includes("/legend");
+
+	useEffect(() => {
+		if (!isSwisstopoRest) {
+			setLegendImage(url);
+			setLoading(false);
 			return;
 		}
-		setError(true);
-	};
 
-	const currentUrl = retryCount === 1 ? url.replace(".fill_de", ".de") : url;
+		async function fetchLegend() {
+			try {
+				const response = await fetch(url);
+				const text = await response.text();
+				const parser = new DOMParser();
+				const doc = parser.parseFromString(text, "text/html");
 
-	if (error) {
+				// Extrahiere das Bild
+				const img = doc.querySelector(".img-container img") as HTMLImageElement;
+				if (img) {
+					const src = img.getAttribute("src") || "";
+					setLegendImage(src.startsWith("http") ? src : `https:${src}`);
+				}
+
+				// Extrahiere Metadaten für Popover
+				const abstract = doc.querySelector(".legend-abstract")?.outerHTML || "";
+				const table = doc.querySelector("table")?.outerHTML || "";
+				setHtmlContent(
+					`${abstract}<div class="mt-4 overflow-x-auto">${table}</div>`,
+				);
+			} catch (err) {
+				console.error("Legend Fetch Error:", err);
+				setError(true);
+			} finally {
+				setLoading(false);
+			}
+		}
+
+		fetchLegend();
+	}, [url, isSwisstopoRest]);
+
+	if (loading)
 		return (
-			<div className="flex items-center gap-2 rounded-md bg-destructive/10 p-2 text-xs text-destructive">
-				<AlertCircle className="h-3 w-3" />
-				<span>Fehler bei {title}</span>
+			<div className="flex p-4">
+				<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+			</div>
+		);
+
+	if (error || !legendImage) {
+		return (
+			<div className="text-[10px] text-destructive flex items-center gap-1 p-2 bg-destructive/5 rounded border border-destructive/10">
+				<AlertCircle className="h-3 w-3" /> Legende nicht verfügbar
 			</div>
 		);
 	}
 
 	return (
-		<div className="group relative mt-1 overflow-hidden rounded-md border bg-white/50 p-1 transition-colors hover:bg-white/80">
-			<div className="relative min-h-8 w-full">
+		<div className="flex flex-col gap-2">
+			{/* Bild-Anzeige (Sidebar) */}
+			<div className="rounded-lg border border-border/40 bg-white/50 p-2 dark:bg-muted/10">
 				<Image
-					src={currentUrl}
+					src={legendImage}
 					alt={title}
+					width={300}
+					height={200}
+					className="h-auto w-auto max-w-full mix-blend-multiply"
+					onError={() => setError(true)}
 					unoptimized
-					width={500}
-					height={500}
-					// mix-blend-multiply macht weiße Hintergründe transparent
-					className="h-auto w-auto max-w-full object-contain mix-blend-multiply"
-					onError={handleError}
 				/>
 			</div>
+
+			{/* Info-Button nur bei Swisstopo REST */}
+			{isSwisstopoRest && (
+				<div className="flex items-center justify-between px-1">
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-6 gap-1.5 px-2 text-[10px] text-muted-foreground hover:text-primary hover:bg-primary/5"
+							>
+								<Info className="h-3.5 w-3.5" />
+								Details
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent
+							className="w-80 text-[12px] p-4 shadow-2xl"
+							side="right"
+						>
+							<div className="space-y-3 max-h-96 overflow-y-auto custom-legend-html">
+								<h3 className="font-bold text-sm border-b pb-2">{title}</h3>
+								<div
+									className="space-y-3 custom-legend-html"
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: <Swisstopo HTML is trusted and fetched server-side>
+									dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+								/>
+							</div>
+						</PopoverContent>
+					</Popover>
+					<a
+						href={url}
+						target="_blank"
+						rel="noreferrer"
+						className="text-muted-foreground/30 hover:text-primary"
+					>
+						<ExternalLink className="h-3 w-3" />
+					</a>
+				</div>
+			)}
 		</div>
 	);
 }
 
 // --- Logic ---
-
 function makeSimple(
 	kind: LegendPaintKind,
 	label: string,
@@ -197,26 +289,22 @@ function extractLegendFromPaint(
 		return [makeSimple(kind, labelFallback, paintValue)];
 	if (!Array.isArray(paintValue) || typeof paintValue[0] !== "string")
 		return [];
-
 	const expr = paintValue as Expr;
 	const op = expr[0] as string;
-
 	if (op === "step") {
 		const out: LegendItem[] = [];
 		const base = expr[2];
 		const first = expr[3];
-		if (isNonEmptyString(base) && first !== undefined) {
-			out.push(makeSimple(kind, `${labelFallback}: < ${String(first)}`, base));
-		}
+		if (isNonEmptyString(base) && first !== undefined)
+			out.push(makeSimple(kind, `< ${String(first)}`, base));
 		for (let i = 3; i + 1 < expr.length; i += 2) {
 			const stop = expr[i];
 			const col = expr[i + 1];
 			if (isNonEmptyString(col))
-				out.push(makeSimple(kind, `${labelFallback}: ≥ ${String(stop)}`, col));
+				out.push(makeSimple(kind, `≥ ${String(stop)}`, col));
 		}
 		return out;
 	}
-
 	if (op === "match") {
 		const out: LegendItem[] = [];
 		for (let i = 2; i + 1 < expr.length - 1; i += 2) {
@@ -225,22 +313,9 @@ function extractLegendFromPaint(
 			if (isNonEmptyString(col)) out.push(makeSimple(kind, String(key), col));
 		}
 		const def = expr[expr.length - 1];
-		if (isNonEmptyString(def))
-			out.push(makeSimple(kind, `${labelFallback}: sonst`, def));
+		if (isNonEmptyString(def)) out.push(makeSimple(kind, "Sonst", def));
 		return out;
 	}
-
-	if (op === "interpolate") {
-		const out: LegendItem[] = [];
-		for (let i = 3; i + 1 < expr.length; i += 2) {
-			const stop = expr[i];
-			const col = expr[i + 1];
-			if (isNonEmptyString(col))
-				out.push(makeSimple(kind, `${labelFallback}: ${String(stop)}`, col));
-		}
-		return out;
-	}
-
 	return [];
 }
 
@@ -252,11 +327,9 @@ function buildLegendForTocItem(
 	const fillId = ids.find((id) => map.getLayer(id)?.type === "fill");
 	const lineId = ids.find((id) => map.getLayer(id)?.type === "line");
 	const circleId = ids.find((id) => map.getLayer(id)?.type === "circle");
-
 	if (fillId) {
 		const fillPaint = getPaintValue(map, fillId, "fill-color");
 		const fillLegend = extractLegendFromPaint("fill", fillPaint, toc.title);
-
 		if (fillLegend.length === 1 && fillLegend[0].swatch.kind === "fill") {
 			const outline = lineId ? getPaintValue(map, lineId, "line-color") : null;
 			return [
@@ -274,8 +347,7 @@ function buildLegendForTocItem(
 		}
 		return dedupeLegend(fillLegend);
 	}
-
-	if (lineId) {
+	if (lineId)
 		return dedupeLegend(
 			extractLegendFromPaint(
 				"line",
@@ -283,9 +355,7 @@ function buildLegendForTocItem(
 				toc.title,
 			),
 		);
-	}
-
-	if (circleId) {
+	if (circleId)
 		return dedupeLegend(
 			extractLegendFromPaint(
 				"circle",
@@ -293,18 +363,14 @@ function buildLegendForTocItem(
 				toc.title,
 			),
 		);
-	}
-
 	return [];
 }
 
-// --- Main Components ---
-
+// --- Main Legend List ---
 function LegendList({ map }: { map: maplibregl.Map | null }) {
 	const visible = useTocStore((s) => s.visible);
 	const dynamicItems = useTocStore((s) => s.dynamicItems) as ExtendedTocItem[];
 	const [sections, setSections] = useState<LegendSection[]>([]);
-
 	const allItems = useMemo(
 		() => [...(MAP_CONFIG.tocItems as ExtendedTocItem[]), ...dynamicItems],
 		[dynamicItems],
@@ -312,16 +378,11 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 
 	useEffect(() => {
 		if (!map) return;
-
 		const rebuild = () => {
 			const next: LegendSection[] = [];
-
-			// SCHLEIFE ÜBER ALLE ITEMS
 			for (const item of allItems) {
 				if (!visible[item.id]) continue;
-
 				if (item.legendItems && item.legendItems.length > 0) {
-					// 1. Manuelle LegendItems (Vektor)
 					next.push({
 						kind: "vector",
 						item,
@@ -330,49 +391,33 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 							swatch: li.swatch as LegendItem["swatch"],
 						})),
 					});
-					continue; // Weiter zum nächsten Item
+					continue;
 				}
-
 				if (item.legendUrl) {
-					// 2. WMS Legenden (Bild)
 					next.push({ kind: "image", item, url: item.legendUrl });
-					continue; // Weiter zum nächsten Item
+					continue;
 				}
-
-				// 3. Automatische Vektor-Extraktion
 				const vectorItems = buildLegendForTocItem(map, item);
-				if (vectorItems.length > 0) {
+				if (vectorItems.length > 0)
 					next.push({ kind: "vector", item, legend: vectorItems });
-				}
-			} // ENDE DER SCHLEIFE
-
-			// --- GRUPPIERUNG (NACH DER SCHLEIFE) ---
+			}
 			const grouped: LegendSection[] = [];
-
-			next.forEach((sec) => {
+			for (const sec of next) {
 				const last = grouped[grouped.length - 1];
-
-				// Prüfen, ob wir dieses Element mit dem vorherigen mergen können
-				const canGroup =
+				if (
 					last &&
 					last.kind === "vector" &&
 					sec.kind === "vector" &&
-					last.item.title === sec.item.title;
-
-				if (canGroup) {
-					// Merge legend arrays und dedupe
+					last.item.title === sec.item.title
+				) {
 					(last as VectorSection).legend = dedupeLegend([
 						...(last as VectorSection).legend,
 						...(sec as VectorSection).legend,
 					]);
-				} else {
-					grouped.push(sec);
-				}
-			});
-
+				} else grouped.push(sec);
+			}
 			setSections(grouped);
 		};
-
 		rebuild();
 		map.on("styledata", rebuild);
 		return () => {
@@ -382,39 +427,36 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 
 	if (!sections.length)
 		return (
-			<div className="flex h-32 flex-col items-center justify-center space-y-2 text-muted-foreground/60">
-				<ImageIcon className="h-8 w-8 stroke-1" />
-				<p className="text-xs">Keine aktiven Ebenen</p>
+			<div className="flex h-40 flex-col items-center justify-center space-y-3 text-muted-foreground/40 animate-in fade-in duration-500">
+				<ImageIcon className="h-10 w-10 stroke-1" />
+				<p className="text-[11px] font-medium tracking-wide uppercase">
+					Keine aktiven Ebenen
+				</p>
 			</div>
 		);
 
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6 animate-in fade-in slide-in-from-bottom-1 duration-300">
 			{sections.map((sec, idx) => {
 				const isSingleEntry = sec.kind === "vector" && sec.legend.length === 1;
 				const showHeader =
 					!isSingleEntry || sec.legend[0].label !== sec.item.title;
-
-				// Unique Key generieren (Fallback auf Index, falls ID doppelt vorkommt)
-				const uniqueKey = `${sec.item.id}-${idx}`;
-
 				return (
-					<div key={uniqueKey} className="flex flex-col gap-1.5">
+					<div key={`${sec.item.id}-${idx}`} className="flex flex-col gap-2">
 						{showHeader && (
-							<h4 className="text-[12px] font-bold uppercase tracking-wider text-muted-foreground/80">
+							<h4 className="text-[10px] font-bold uppercase tracking-widest text-secondary/70 border-b pb-1 mb-1">
 								{sec.item.title}
 							</h4>
 						)}
-
 						{isVectorSection(sec) ? (
-							<div className="space-y-1">
+							<div className="space-y-1.5 px-0.5">
 								{sec.legend.map((li) => (
 									<div
-										key={`${uniqueKey}-${li.label}-${swatchKey(li.swatch)}`}
-										className="flex items-center gap-3 py-0.5"
+										key={`${li.label}-${swatchKey(li.swatch)}`}
+										className="flex items-center gap-3 py-0.5 group"
 									>
 										<Swatch swatch={li.swatch} />
-										<span className="text-[13px] leading-tight text-foreground/90">
+										<span className="text-[12px] leading-tight text-foreground/80 group-hover:text-foreground transition-colors">
 											{li.label}
 										</span>
 									</div>
@@ -429,6 +471,7 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 		</div>
 	);
 }
+
 export function LegendPanel({
 	map,
 	variant = "sidebar",
@@ -439,54 +482,57 @@ export function LegendPanel({
 	className?: string;
 }) {
 	const isMobile = useIsMobile();
-	const content = (
-		<ScrollArea
-			className={variant === "sidebar" ? "h-full" : "h-[45vh] max-h-150"}
-		>
-			<div className="p-4 pt-2">
+	if (variant === "sidebar")
+		return (
+			<div className={cn("w-full h-auto", className)}>
+				<LegendList map={map} />
+			</div>
+		);
+	const floatingContent = (
+		<ScrollArea className="h-[50vh] max-h-150 w-full">
+			<div className="p-5">
 				<LegendList map={map} />
 			</div>
 		</ScrollArea>
 	);
-
-	if (variant === "sidebar")
-		return <div className={cn("h-full", className)}>{content}</div>;
-
-	if (isMobile) {
+	if (isMobile)
 		return (
 			<Sheet>
 				<SheetTrigger asChild>
 					<Button
 						variant="outline"
 						size="sm"
-						className="fixed bottom-20 right-4 z-50 h-10 w-10 rounded-full bg-background p-0 shadow-lg"
+						className="fixed bottom-24 right-4 z-50 h-12 w-12 rounded-2xl bg-background shadow-xl border-primary/20 p-0 text-primary"
 					>
-						<List className="h-5 w-5" />
+						<List className="h-6 w-6" />
 					</Button>
 				</SheetTrigger>
-				<SheetContent side="bottom" className="rounded-t-xl h-[70vh]">
-					<SheetHeader className="border-b pb-4">
-						<SheetTitle>Legende</SheetTitle>
+				<SheetContent
+					side="bottom"
+					className="rounded-t-4xl h-[75vh] px-0 pb-10 border-t-2 border-primary/10"
+				>
+					<SheetHeader className="px-6 border-b pb-4">
+						<SheetTitle className="text-left text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+							<List className="h-4 w-4" /> Legende
+						</SheetTitle>
 					</SheetHeader>
-					{content}
+					{floatingContent}
 				</SheetContent>
 			</Sheet>
 		);
-	}
-
 	return (
 		<Card
 			className={cn(
-				"fixed right-4 top-20 z-40 w-72 border-border/40 shadow-2xl backdrop-blur-md",
+				"fixed right-6 top-24 z-40 w-80 border-border/40 shadow-2xl backdrop-blur-xl bg-background/95 rounded-2xl overflow-hidden",
 				className,
 			)}
 		>
-			<CardHeader className="border-b bg-muted/20 py-3 px-4">
-				<CardTitle className="flex items-center gap-2 text-sm font-bold">
-					<List className="h-4 w-4" /> Legende
+			<CardHeader className="border-b bg-muted/30 py-3.5 px-5">
+				<CardTitle className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.2em] text-secondary">
+					<List className="h-4 w-4 text-primary" /> Legende
 				</CardTitle>
 			</CardHeader>
-			<CardContent className="p-0">{content}</CardContent>
+			<CardContent className="p-0">{floatingContent}</CardContent>
 		</Card>
 	);
 }

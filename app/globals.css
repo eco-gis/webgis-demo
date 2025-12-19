@@ -202,3 +202,24 @@ html {
 body {
 	min-height: 100%;
 }
+
+/* Styling für das Legenden-Popover */
+.custom-legend-html table {
+	@apply w-full text-[11px] border-collapse mt-2;
+}
+
+.custom-legend-html td {
+	@apply py-1.5 border-b border-border/40 align-top;
+}
+
+.custom-legend-html td:first-child {
+	@apply font-semibold text-muted-foreground w-25 pr-2;
+}
+
+.custom-legend-html a {
+	@apply text-primary underline break-all;
+}
+
+.custom-legend-html .legend-abstract {
+	@apply text-muted-foreground leading-relaxed mb-4 italic;
+}

@@ -39,80 +39,70 @@ function firstLayerName(layers: string): string {
 	return first && first.length > 0 ? first : layers.trim();
 }
 
+/**
+ * Bereinigt swisstopo Layer-Namen von technischen Suffixen.
+ */
 function normalizeSwisstopoLayerBase(name: string): string {
-	// du hast intern teilweise ".fill/.line/.circle" in cfg.layers hängen – das ist NICHT der WMS-Layername
-	return name.replace(/\.(fill|line|circle|symbol)$/i, "");
+	return name
+		.replace(/\.(fill|line|circle|symbol|point)$/i, "") // Entfernt Typ-Suffixe
+		.split("{")[0] // Entfernt mögliche Template-Reste wie {z}
+		.replace(/\.$/, ""); // Entfernt hängende Punkte
 }
 
-type LegendHint = "fill" | "line" | "point" | "unknown";
-
-function guessLegendHintFromRawName(raw: string): LegendHint {
-	const lower = raw.toLowerCase();
-	if (lower.includes(".fill")) return "fill";
-	if (lower.includes(".line")) return "line";
-	if (lower.includes(".circle") || lower.includes(".symbol") || lower.includes(".point"))
-		return "point";
-	return "unknown";
-}
-
-/**
- * Swisstopo (api3) hat oft Legend-PNGs wie:
- *  - <layer>.fill_de.png
- *  - <layer>.line_de.png
- *  - <layer>.point_de.png
- * und manchmal auch ohne Suffix (aber nicht zuverlässig).
- */
-function buildSwisstopoStaticLegendUrl(layerBase: string, hint: LegendHint): string {
-	const suffixes: string[] =
-		hint === "fill"
-			? ["fill_de", "line_de", "point_de", "de"]
-			: hint === "line"
-				? ["line_de", "fill_de", "point_de", "de"]
-				: hint === "point"
-					? ["point_de", "circle_de", "symbol_de", "de", "fill_de", "line_de"]
-					: ["fill_de", "line_de", "point_de", "de"];
-
-	// Wir liefern einen “primary” URL zurück; der Legend-Renderer macht dann Fallbacks via onError.
-	// Darum: wir starten mit dem wahrscheinlichsten.
-	return `https://api3.geo.admin.ch/static/images/legends/${layerBase}.${suffixes[0]}.png`;
-}
-
-/**
- * Fallback: klassisches WMS GetLegendGraphic (für Nicht-swisstopo oder wenn du es später brauchst).
- * Für swisstopo nutze bevorzugt api3 statische Bilder.
- */
-function buildWmsLegendGraphicUrl(cfg: WmsUrlConfig, layerBase: string): string {
-    const u = new URL(cfg.baseUrl);
-    u.searchParams.set("SERVICE", "WMS");
-    u.searchParams.set("REQUEST", "GetLegendGraphic");
-    u.searchParams.set("FORMAT", "image/png");
-    u.searchParams.set("LAYER", layerBase);
-    u.searchParams.set("VERSION", "1.3.0");
-    u.searchParams.set("SLD_VERSION", "1.1.0");
-    return u.toString();
+function buildWmsLegendGraphicUrl(
+	cfg: WmsUrlConfig,
+	layerBase: string,
+): string {
+	const u = new URL(cfg.baseUrl);
+	u.searchParams.set("SERVICE", "WMS");
+	u.searchParams.set("REQUEST", "GetLegendGraphic");
+	u.searchParams.set("FORMAT", "image/png");
+	u.searchParams.set("LAYER", layerBase);
+	u.searchParams.set("VERSION", "1.3.0");
+	u.searchParams.set("SLD_VERSION", "1.1.0");
+	return u.toString();
 }
 
 function isSwisstopoBaseUrl(url: string): boolean {
 	try {
 		const u = new URL(url);
-		return u.host === "wms.geo.admin.ch" || u.host === "api3.geo.admin.ch";
+		// Deckt wms.geo.admin.ch, api3.geo.admin.ch und wmts.geo.admin.ch ab
+		return u.host.includes("geo.admin.ch");
 	} catch {
 		return false;
 	}
+}
+
+/**
+ * Erzeugt die URL zum HTML-Fragment der swisstopo REST API.
+ * Das LegendPanel nutzt diese URL, um das Bild zu extrahieren und Metadaten im Popover anzuzeigen.
+ */
+function buildSwisstopoRestLegendUrl(layerBase: string, lang = "de"): string {
+	// Falls die ID leer ist, Fallback auf einen bekannten Layer zum Testen oder leer
+	if (!layerBase) return "";
+
+	// Wir nutzen den offiziellen REST-Service
+	return `https://api3.geo.admin.ch/rest/services/ech/MapServer/${layerBase}/legend?lang=${lang}`;
 }
 
 function buildWmsLegendUrl(cfg: WmsUrlConfig): string {
 	const rawFirst = firstLayerName(cfg.layers);
 	const layerBase = normalizeSwisstopoLayerBase(rawFirst);
 
-	if (isSwisstopoBaseUrl(cfg.baseUrl) && layerBase.startsWith("ch.swisstopo.")) {
-		const hint = guessLegendHintFromRawName(rawFirst);
-		return buildSwisstopoStaticLegendUrl(layerBase, hint);
+	// Erkennung ob Swisstopo Layer (über URL oder Namensschema)
+	const isSwisstopo =
+		isSwisstopoBaseUrl(cfg.baseUrl) || layerBase.startsWith("ch.");
+
+	if (isSwisstopo) {
+		return buildSwisstopoRestLegendUrl(layerBase, "de");
 	}
 
-	// generic
-	return buildWmsLegendGraphicUrl(cfg, layerBase);
+	// Standard OGC WMS GetLegendGraphic für andere Anbieter
+	return buildWmsGraphicLegendUrl(cfg, layerBase);
 }
+
+// Alias für Konsistenz
+const buildWmsGraphicLegendUrl = buildWmsLegendGraphicUrl;
 
 export function toTocItem(cfg: WmsUrlConfig): TocItemConfig {
 	return {

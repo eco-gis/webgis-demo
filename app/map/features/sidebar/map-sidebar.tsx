@@ -96,6 +96,8 @@ export function AppSidebar({
 }) {
 	const { setOpenMobile, isMobile } = useSidebar();
 	const isMeasuring = drawing.mode.startsWith("measure");
+
+	// liveValue wird hier berechnet und unten in der UI verwendet
 	const liveValue =
 		drawing.currentSketch && isMeasuring
 			? formatMeasurement(drawing.mode, drawing.currentSketch)
@@ -107,13 +109,19 @@ export function AppSidebar({
 	};
 
 	return (
-		<Sidebar variant="sidebar" side="left">
-			{/* WICHTIG: h-full und overflow-hidden auf den Tabs, damit ScrollArea funktioniert */}
-			<Tabs defaultValue="toc" className="flex flex-col h-full overflow-hidden">
-				<SidebarHeader className="p-4 pb-2 bg-background shrink-0">
+		<Sidebar
+			variant="sidebar"
+			side="left"
+			className="border-r-0 shadow-xl overflow-hidden"
+		>
+			<Tabs
+				defaultValue="toc"
+				className="flex flex-col h-full overflow-hidden bg-background"
+			>
+				<SidebarHeader className="p-4 pb-2 bg-background shrink-0 z-20">
 					<div className="flex items-center justify-between mb-4 md:hidden">
-						<span className="font-bold text-xs tracking-widest text-muted-foreground px-1 uppercase">
-							Menü
+						<span className="font-bold text-[10px] tracking-[0.2em] text-muted-foreground px-1 uppercase">
+							Navigation
 						</span>
 						<Button
 							variant="ghost"
@@ -124,22 +132,22 @@ export function AppSidebar({
 							<X className="h-5 w-5" />
 						</Button>
 					</div>
-					<TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 h-11 md:h-9">
+					<TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 h-11 md:h-9 rounded-xl">
 						<TabsTrigger
 							value="toc"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5"
+							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
 						>
 							<Layers className="h-3.5 w-3.5" /> Ebenen
 						</TabsTrigger>
 						<TabsTrigger
 							value="legend"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5"
+							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
 						>
 							<List className="h-3.5 w-3.5" /> Legende
 						</TabsTrigger>
 						<TabsTrigger
 							value="tools"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5"
+							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
 						>
 							<Wrench className="h-3.5 w-3.5" /> Tools
 						</TabsTrigger>
@@ -147,14 +155,21 @@ export function AppSidebar({
 				</SidebarHeader>
 
 				<SidebarContent className="flex-1 min-h-0 overflow-hidden">
-					<TabsContent value="toc" className="h-full m-0 flex flex-col min-h-0">
-						<ScrollArea className="flex-1 overflow-y-auto">
-							<div className="px-3 md:px-4 py-2 space-y-4 md:space-y-6 pb-8 md:pb-10">
-								<TocPanel />
-								<section className="pt-3 md:pt-4 border-t border-border/60">
+					{/* EBENEN TAB */}
+					<TabsContent
+						value="toc"
+						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
+					>
+						<ScrollArea className="flex-1 h-full">
+							<div className="px-4 py-4 space-y-8 pb-24">
+								<section className="space-y-3">
+									<TocPanel />
+								</section>
+
+								<section className="pt-6 border-t border-border/40">
 									<div className="mb-4 px-1">
-										<h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
-											<Globe className="h-3 w-3" /> Externe Quellen (WMS)
+										<h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
+											<Globe className="h-3 w-3" /> Externe Quellen
 										</h4>
 									</div>
 									<SwisstopoWmsPanel map={map} />
@@ -163,25 +178,27 @@ export function AppSidebar({
 						</ScrollArea>
 					</TabsContent>
 
+					{/* LEGENDE TAB */}
 					<TabsContent
 						value="legend"
-						className="h-full m-0 flex flex-col min-h-0"
+						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
 					>
-						<ScrollArea className="flex-1 overflow-y-auto">
-							<div className="px-4 py-4 pb-10">
+						<ScrollArea className="flex-1 h-full">
+							<div className="px-4 py-4 pb-24">
 								<LegendPanel map={map} variant="sidebar" />
 							</div>
 						</ScrollArea>
 					</TabsContent>
 
+					{/* TOOLS TAB */}
 					<TabsContent
 						value="tools"
-						className="h-full m-0 flex flex-col min-h-0"
+						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
 					>
-						<ScrollArea className="flex-1 overflow-y-auto">
-							<div className="px-4 py-4 space-y-8 pb-10">
+						<ScrollArea className="flex-1 h-full">
+							<div className="px-4 py-4 space-y-8 pb-24">
 								<section>
-									<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-3 px-1">
+									<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 block mb-3 px-1">
 										Analyse & Messen
 									</span>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -203,7 +220,7 @@ export function AppSidebar({
 								</section>
 
 								<section>
-									<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block mb-3 px-1">
+									<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 block mb-3 px-1">
 										Skizzieren & Zeichnen
 									</span>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -224,8 +241,9 @@ export function AppSidebar({
 									</div>
 								</section>
 
+								{/* Live Anzeige (Hier wird liveValue genutzt) */}
 								{drawing.hasSketch && (
-									<div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 shadow-sm animate-in slide-in-from-bottom-2 duration-200 sticky bottom-0 z-20">
+									<div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 shadow-sm animate-in slide-in-from-bottom-2 duration-200">
 										<div className="flex justify-between items-center text-primary">
 											<div className="flex flex-col">
 												<span className="text-[9px] uppercase font-bold opacity-70 tracking-tight">
@@ -239,32 +257,33 @@ export function AppSidebar({
 												<Button
 													size="icon"
 													variant="outline"
-													className="h-11 w-11 md:h-10 md:w-10 rounded-xl bg-background shadow-sm border-2"
+													className="h-10 w-10 rounded-xl bg-background border-2 border-primary/10 hover:border-primary/40"
 													onClick={drawing.undoLast}
 												>
-													<Undo2 className="h-5 w-5 md:h-4 md:w-4" />
+													<Undo2 className="h-4 w-4" />
 												</Button>
 												<Button
 													size="icon"
-													className="h-11 w-11 md:h-10 md:w-10 rounded-xl shadow-md"
+													className="h-10 w-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
 													onClick={drawing.finish}
 												>
-													<Check className="h-5 w-5 md:h-4 md:w-4" />
+													<Check className="h-4 w-4" />
 												</Button>
 											</div>
 										</div>
 									</div>
 								)}
 
+								{/* Verlauf */}
 								{drawing.hasFeatures && (
-									<section className="space-y-4 pt-6 border-t border-border/60">
+									<section className="space-y-4 pt-6 border-t border-border/40">
 										<div className="flex items-center justify-between px-1">
-											<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+											<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
 												Verlauf
 											</span>
 											<Button
 												variant="ghost"
-												className="h-auto p-0 text-[10px] text-destructive hover:bg-transparent"
+												className="h-auto p-0 text-[10px] text-destructive hover:bg-transparent font-bold uppercase"
 												onClick={drawing.clearAll}
 											>
 												<Trash2 className="mr-1 h-3 w-3" /> Alle löschen
@@ -275,10 +294,10 @@ export function AppSidebar({
 											{drawing.allFeatures.map((f) => (
 												<div
 													key={f.properties?.id}
-													className="flex justify-between items-center bg-muted/40 p-3 rounded-xl border border-border/10"
+													className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border/5"
 												>
 													<div className="flex items-center gap-3 overflow-hidden">
-														<div className="p-2 rounded-lg bg-background border border-border/50 text-primary shrink-0">
+														<div className="p-2 rounded-lg bg-background border border-border/40 text-primary shrink-0">
 															{f.properties?.kind === "polygon" ? (
 																<Shapes className="h-3.5 w-3.5" />
 															) : (
@@ -286,12 +305,12 @@ export function AppSidebar({
 															)}
 														</div>
 														<div className="flex flex-col overflow-hidden">
-															<span className="text-[9px] text-muted-foreground font-bold uppercase tracking-tighter">
+															<span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-tighter text-left">
 																{f.properties?.usage === "measure"
 																	? "Messung"
 																	: "Skizze"}
 															</span>
-															<span className="font-mono text-sm font-bold truncate">
+															<span className="font-mono text-sm font-bold truncate text-left">
 																{formatMeasurement(f.properties?.kind, f)}
 															</span>
 														</div>
@@ -299,7 +318,7 @@ export function AppSidebar({
 													<Button
 														variant="ghost"
 														size="icon"
-														className="h-9 w-9 text-muted-foreground shrink-0"
+														className="h-9 w-9 text-muted-foreground/40 hover:text-destructive shrink-0"
 														onClick={() =>
 															drawing.deleteFeature(f.properties?.id)
 														}

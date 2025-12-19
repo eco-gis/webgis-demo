@@ -15,7 +15,7 @@ interface AppShellProps {
 
 export function AppShell({ children, map, drawing }: AppShellProps) {
 	return (
-		<SidebarProvider defaultOpen={false}>
+		<SidebarProvider defaultOpen={true}>
 			<AppSidebar map={map} drawing={drawing} />
 			<SidebarInset className="flex flex-col h-dvh w-full overflow-hidden relative bg-background">
 				<AppHeader map={map} />

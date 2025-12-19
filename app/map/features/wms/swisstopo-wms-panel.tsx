@@ -1,6 +1,13 @@
 "use client";
 
-import { Check, ChevronsUpDown, Trash2, X } from "lucide-react";
+import {
+	Check,
+	ChevronsUpDown,
+	Loader2,
+	Search,
+	Trash2,
+	X,
+} from "lucide-react";
 import type { Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useState } from "react";
 
@@ -19,40 +26,40 @@ import {
 	PopoverContent,
 	PopoverTrigger,
 } from "@/app/components/ui/popover";
+import { ScrollArea } from "@/app/components/ui/scroll-area";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipProvider,
+	TooltipTrigger,
+} from "@/app/components/ui/tooltip";
 
 import { cn } from "@/app/lib/utils";
 import { useTocStore } from "@/app/map/features/toc/toc-store";
 import type { TocItemId } from "@/app/map/features/toc/toc-types";
 
-import { loadSwisstopoWmsCatalog } from "./swisstopo-wms-catalog";
+import {
+	loadSwisstopoCatalog,
+	type SwisstopoLayerConfig,
+} from "./swisstopo-catalog";
 import { toTocItem } from "./wms-from-url";
 import { removeWmsLayer, upsertWmsLayer } from "./wms-maplibre";
-import type { WmsUrlConfig } from "./wms-types";
+import type { WmsUrlConfig, WmsUrlId } from "./wms-types";
 
 type Props = {
 	map: MapLibreMap | null;
 };
 
-type CatalogItem = {
-	name: string;
-	title: string;
-};
-
-function makeWmsId(name: string): `wms:${string}` {
-	const safe = name
-		.toLowerCase()
-		.replace(/[^a-z0-9]+/g, "_")
-		.replace(/^_+|_+$/g, "")
-		.slice(0, 80);
-
-	return `wms:swisstopo_${safe}` as const;
+function makeInternalId(id: string, isWmts: boolean): WmsUrlId {
+	const prefix = isWmts ? "wmts" : "wms";
+	return `${prefix}:${id}` as const;
 }
 
 export function SwisstopoWmsPanel({ map }: Props) {
 	const [open, setOpen] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+	const [catalog, setCatalog] = useState<SwisstopoLayerConfig[]>([]);
 
 	const registerDynamicItem = useTocStore((s) => s.registerDynamicItem);
 	const unregisterDynamicItem = useTocStore((s) => s.unregisterDynamicItem);
@@ -60,63 +67,63 @@ export function SwisstopoWmsPanel({ map }: Props) {
 
 	const activeItems = useMemo(
 		() =>
-			dynamicItems.filter((it) =>
-				String(it.id).startsWith("wms:swisstopo_"),
+			dynamicItems.filter(
+				(it) =>
+					String(it.id).startsWith("wms:ch.swisstopo") ||
+					String(it.id).startsWith("wmts:ch.swisstopo"),
 			),
 		[dynamicItems],
 	);
 
-	const options = useMemo(
-		() => catalog.filter((l) => l.name.startsWith("ch.swisstopo.")),
-		[catalog],
-	);
-
-	const titleByName = useMemo(() => {
-		const map = new Map<string, string>();
-		for (const o of options) map.set(o.name, o.title);
-		return map;
-	}, [options]);
-
 	useEffect(() => {
 		let cancelled = false;
-
-		setLoading(true);
-		setError(null);
-
-		loadSwisstopoWmsCatalog()
-			.then((items) => {
-				if (cancelled) return;
-				setCatalog(items.map(({ name, title }) => ({ name, title })));
-			})
-			.catch((e) => {
-				if (cancelled) return;
-				setError(e instanceof Error ? e.message : "Katalog konnte nicht geladen werden");
-			})
-			.finally(() => {
+		async function fetchCatalog() {
+			setLoading(true);
+			setError(null);
+			try {
+				const items = await loadSwisstopoCatalog();
+				if (!cancelled) setCatalog(items);
+			} catch {
+				if (!cancelled) setError("Katalog konnte nicht geladen werden.");
+			} finally {
 				if (!cancelled) setLoading(false);
-			});
-
+			}
+		}
+		fetchCatalog();
 		return () => {
 			cancelled = true;
 		};
 	}, []);
 
-	function addLayer(layerName: string): void {
+	function handleToggleLayer(layer: SwisstopoLayerConfig) {
 		if (!map) return;
+		const internalId = makeInternalId(layer.id, layer.isWmts);
+		const isActive = activeItems.some((it) => it.id === internalId);
 
+		if (isActive) {
+			removeLayer(internalId);
+		} else {
+			addLayer(layer);
+		}
+	}
+
+	function addLayer(layer: SwisstopoLayerConfig): void {
+		if (!map) return;
+		const internalId = makeInternalId(layer.id, layer.isWmts);
 		const cfg: WmsUrlConfig = {
-			id: makeWmsId(layerName),
-			title: titleByName.get(layerName) ?? layerName,
-			baseUrl: "https://wms.geo.admin.ch/",
-			layers: layerName,
-			format: "image/png",
+			id: internalId,
+			title: layer.title,
+			baseUrl: layer.isWmts
+				? `https://wmts.geo.admin.ch/1.0.0/${layer.id}/default/current/3857/{z}/{x}/{y}.${layer.format.split("/")[1] || layer.format}`
+				: "https://wms.geo.admin.ch/",
+			layers: layer.id,
+			format: layer.format.includes("jpeg") ? "image/jpeg" : "image/png",
 			transparent: true,
 			opacity: 1,
 		};
 
 		upsertWmsLayer(map, cfg);
 		registerDynamicItem(toTocItem(cfg));
-		setOpen(false);
 	}
 
 	function removeLayer(id: TocItemId): void {
@@ -125,121 +132,170 @@ export function SwisstopoWmsPanel({ map }: Props) {
 		unregisterDynamicItem(id);
 	}
 
-	function clearAll(): void {
+	function clearAllLayers() {
 		if (!map) return;
-		for (const it of activeItems) {
-			removeWmsLayer(map, String(it.id));
-			unregisterDynamicItem(it.id);
+		for (const item of activeItems) {
+			removeLayer(item.id);
 		}
 	}
 
 	const disabled = !map || loading;
 
 	return (
-		<div className="space-y-2">
-			<div className="text-[11px] font-medium text-muted-foreground">
-				Swisstopo WMS
-			</div>
-
-			{error && (
-				<div className="rounded-sm bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
-					{error}
-				</div>
-			)}
-
-			{activeItems.length > 0 && (
-				<div className="rounded-md border bg-muted/20 p-2">
-					<div className="mb-1 flex items-center justify-between">
-						<span className="text-[11px] text-muted-foreground">
-							Aktiv
-						</span>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="h-6 px-1 text-[11px]"
-							onClick={clearAll}
-							disabled={disabled}
-						>
-							<Trash2 className="mr-1 h-3 w-3" />
-							Leeren
-						</Button>
-					</div>
-
-					<div className="flex flex-wrap gap-1">
-						{activeItems.map((it) => (
-							<Badge
-								key={String(it.id)}
-								variant="secondary"
-								className="h-5 gap-1 px-1.5 text-[11px]"
-							>
-								<span className="max-w-40 truncate">{it.title}</span>
-								<button
-									type="button"
-									onClick={() => removeLayer(it.id)}
-									className="opacity-60 hover:opacity-100"
-								>
-									<X className="h-3 w-3" />
-								</button>
-							</Badge>
-						))}
-					</div>
-				</div>
-			)}
+		<div className="flex flex-col gap-3 font-sans">
+			<header className="flex items-center justify-between px-0.5">
+				<h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+					Swisstopo Katalog
+				</h3>
+				{activeItems.length > 0 && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={clearAllLayers}
+						className="h-5 px-1.5 text-[10px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+					>
+						<Trash2 className="mr-1 h-3 w-3" />
+						Alle leeren
+					</Button>
+				)}
+			</header>
 
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
-					<button
-						type="button"
+					<Button
+						variant="outline"
+						role="combobox"
+						aria-expanded={open}
 						disabled={disabled}
 						className={cn(
-							"flex w-full items-center justify-between rounded-md border px-2 py-1.5 text-left text-[12px]",
-							"bg-background hover:bg-muted/30",
-							"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-							"disabled:opacity-60",
+							"w-full justify-between bg-background px-3 text-sm font-normal transition-all",
+							"hover:border-primary/50 focus:ring-2 focus:ring-primary/20",
+							error && "border-destructive/50",
 						)}
 					>
-						<span>Layer hinzufügen</span>
-						<ChevronsUpDown className="h-4 w-4 opacity-60" />
-					</button>
+						<div className="flex items-center gap-2.5 truncate">
+							{loading ? (
+								<Loader2 className="h-4 w-4 animate-spin text-primary" />
+							) : (
+								<Search className="h-4 w-4 text-primary/70" />
+							)}
+							<span className="truncate">
+								{loading ? "Katalog laden..." : "Ebenen hinzufügen..."}
+							</span>
+						</div>
+						<ChevronsUpDown className="h-4 w-4 shrink-0 opacity-40 text-secondary" />
+					</Button>
 				</PopoverTrigger>
 
 				<PopoverContent
+					className="w-[--radix-popover-trigger-width] p-0 shadow-xl border-border"
 					align="start"
-					className="w-(--radix-popover-trigger-width) p-0"
+					sideOffset={4}
 				>
-					<Command>
-						<CommandInput
-							placeholder="Suchen…"
-							className="h-8 text-xs"
-						/>
-						<CommandList className="max-h-[40vh]">
-							<CommandEmpty className="py-2 text-xs">
-								Keine Treffer
+					<Command className="rounded-lg">
+						<CommandInput placeholder="Suchen..." className="h-10 text-sm" />
+						<CommandList>
+							<CommandEmpty className="py-6 text-center text-xs text-muted-foreground font-sans">
+								Keine Layer gefunden.
 							</CommandEmpty>
+							<CommandGroup title="Verfügbare Karten">
+								<ScrollArea className="h-80 pr-1">
+									{catalog.map((layer) => {
+										const internalId = makeInternalId(layer.id, layer.isWmts);
+										const isActive = activeItems.some(
+											(it) => it.id === internalId,
+										);
 
-							<CommandGroup heading="Swisstopo" className="text-[10px]">
-								{options.map((opt) => (
-									<CommandItem
-										key={opt.name}
-										value={opt.name}
-										onSelect={() => addLayer(opt.name)}
-										className="py-1.5"
-									>
-										<Check className="mr-2 h-3.5 w-3.5 opacity-0" />
-										<span className="truncate text-xs">
-											{opt.title}
-										</span>
-									</CommandItem>
-								))}
+										return (
+											<CommandItem
+												key={layer.id}
+												value={layer.title}
+												onSelect={() => handleToggleLayer(layer)}
+												className="group flex cursor-pointer items-start gap-3 px-3 py-3 data-[selected=true]:bg-primary/5 transition-colors"
+											>
+												{/* OPTIMIERTE CHECKBOX: Orange Umrandung & Oranger Haken */}
+												<div
+													className={cn(
+														"mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-all duration-200",
+														isActive
+															? "border-primary bg-primary/10" // Orange Rand, ganz zarter Hintergrund
+															: "border-input bg-background group-hover:border-primary/50",
+													)}
+												>
+													{isActive && (
+														<Check className="h-3 w-3 stroke-[3.5] text-primary" />
+													)}
+												</div>
+
+												<div className="flex flex-col gap-0.5 text-left">
+													<span
+														className={cn(
+															"text-[13px] leading-snug transition-colors",
+															isActive
+																? "font-semibold text-foreground"
+																: "text-foreground group-hover:text-primary",
+														)}
+													>
+														{layer.title}
+													</span>
+													<span className="text-[10px] font-medium uppercase tracking-tighter text-muted-foreground/60">
+														{layer.isWmts ? "WMTS Kachel" : "WMS Service"}
+													</span>
+												</div>
+											</CommandItem>
+										);
+									})}
+								</ScrollArea>
 							</CommandGroup>
 						</CommandList>
 					</Command>
 				</PopoverContent>
 			</Popover>
 
-			{!map && (
-				<div className="text-[10px] text-muted-foreground">
-					Karte noch nicht bereit
+			{error && (
+				<div className="flex items-center gap-2 text-[11px] text-destructive bg-destructive/5 px-2 py-1.5 rounded border border-destructive/20 animate-in fade-in">
+					<X className="h-3 w-3" />
+					{error}
+				</div>
+			)}
+
+			{activeItems.length > 0 && (
+				<div className="flex flex-wrap gap-1.5 pt-1">
+					<TooltipProvider delayDuration={200}>
+						{activeItems.map((it) => (
+							<Badge
+								key={String(it.id)}
+								variant="secondary"
+								className={cn(
+									"group h-7 animate-in fade-in zoom-in-95 items-center gap-1.5 border-transparent",
+									"bg-secondary text-secondary-foreground pl-2.5 pr-1 text-[11px] font-medium",
+									"hover:bg-secondary/90 transition-all shadow-sm",
+								)}
+							>
+								<span className="max-w-35 truncate leading-none">
+									{it.title}
+								</span>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => removeLayer(it.id)}
+											aria-label={`${it.title} entfernen`}
+											className="rounded-full p-0.5 transition-colors hover:bg-destructive hover:text-destructive-foreground focus:outline-none focus:ring-1 focus:ring-white/20"
+										>
+											<X className="h-3 w-3" />
+										</button>
+									</TooltipTrigger>
+									<TooltipContent
+										side="bottom"
+										className="text-[10px] bg-foreground text-background"
+									>
+										Ebene entfernen
+									</TooltipContent>
+								</Tooltip>
+							</Badge>
+						))}
+					</TooltipProvider>
 				</div>
 			)}
 		</div>

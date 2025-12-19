@@ -1,4 +1,3 @@
-// app/map/features/toc/use-toc-sync.ts
 "use client";
 
 import type { Map as MapLibreMap, StyleLayer } from "maplibre-gl";
@@ -60,6 +59,7 @@ export function useTocSync(
 	const applyZOrder = useCallback(() => {
 		if (!map || !map.isStyleLoaded()) return;
 
+		// 1. TOC-Layer sortieren (von hinten nach vorne)
 		const itemsToMove = [...orderedItems].reverse();
 		for (const item of itemsToMove) {
 			const allIds = [
@@ -73,53 +73,76 @@ export function useTocSync(
 			}
 		}
 
-		// System-Layer (Draw/Search) IMMER Top
+		// 2. System-Layer (Search/Draw) IMMER ganz nach oben
+		// WICHTIG: Immer prüfen, ob der Layer existiert!
+		if (map.getLayer("search-marker-layer")) {
 			map.moveLayer("search-marker-layer");
+		}
+
 		const layers = map.getStyle()?.layers || [];
 		for (const l of layers) {
-			if (l.id.startsWith("draw-")) map.moveLayer(l.id);
+			// Drawing-Layer nach ganz oben schieben
+			if (l.id.startsWith("draw-") || l.id.includes("gl-draw")) {
+				map.moveLayer(l.id);
+			}
 		}
 	}, [map, orderedItems]);
 
 	useEffect(() => {
 		if (!map) return;
 
-		// 'idle' ist das stärkste Event für den Initial-Load
-		map.on("idle", applyZOrder);
+		// 'styledata' ist essenziell nach setStyle()
 		map.on("styledata", applyZOrder);
+		// 'idle' hilft, wenn alles fertig gerendert ist
+		map.on("idle", applyZOrder);
+
 		applyZOrder();
 
 		return () => {
-			map.off("idle", applyZOrder);
 			map.off("styledata", applyZOrder);
+			map.off("idle", applyZOrder);
 		};
 	}, [map, applyZOrder]);
 
 	// Visibility & Opacity
 	useEffect(() => {
 		if (!map) return;
-		for (const item of orderedItems) {
-			const isOn = visible[item.id] ?? true;
-			const labelsOn = labelsVisible[item.id] ?? false;
-			const op = opacity[item.id] ?? 1;
-			const allLayerIds = [
-				...asStringArray(item.mapLayerIds),
-				...asStringArray(item.labelLayerIds),
-			];
 
-			for (const lid of allLayerIds) {
-				const layer = map.getLayer(lid);
-				if (!layer) continue;
-				const isLabelLayer = asStringArray(item.labelLayerIds).includes(lid);
-				const shouldBeVisible = isLabelLayer ? isOn && labelsOn : isOn;
-				map.setLayoutProperty(
-					lid,
-					"visibility",
-					shouldBeVisible ? "visible" : "none",
-				);
-				const prop = opacityPaintPropByType(layer.type);
-				if (prop) map.setPaintProperty(lid, prop, op);
+		// Wir nutzen styledata um sicherzustellen, dass die Properties
+		// auch nach Style-Wechsel greifen
+		const syncProperties = () => {
+			for (const item of orderedItems) {
+				const isOn = visible[item.id] ?? true;
+				const labelsOn = labelsVisible[item.id] ?? false;
+				const op = opacity[item.id] ?? 1;
+				const allLayerIds = [
+					...asStringArray(item.mapLayerIds),
+					...asStringArray(item.labelLayerIds),
+				];
+
+				for (const lid of allLayerIds) {
+					const layer = map.getLayer(lid);
+					if (!layer) continue;
+
+					const isLabelLayer = asStringArray(item.labelLayerIds).includes(lid);
+					const shouldBeVisible = isLabelLayer ? isOn && labelsOn : isOn;
+
+					map.setLayoutProperty(
+						lid,
+						"visibility",
+						shouldBeVisible ? "visible" : "none",
+					);
+
+					const prop = opacityPaintPropByType(layer.type);
+					if (prop) map.setPaintProperty(lid, prop, op);
+				}
 			}
-		}
+		};
+
+		syncProperties();
+		map.on("styledata", syncProperties);
+		return () => {
+			map.off("styledata", syncProperties);
+		};
 	}, [map, orderedItems, visible, labelsVisible, opacity]);
 }
