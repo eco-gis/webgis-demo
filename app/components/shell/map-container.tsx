@@ -23,6 +23,8 @@ const parseCenter = (raw?: string): [number, number] => {
 	return parts.length === 2 ? [parts[0], parts[1]] : [8.55, 47.37];
 };
 
+// app/map/page.tsx oder MapContainer.tsx
+
 export function MapContainer() {
 	const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -46,7 +48,7 @@ export function MapContainer() {
 		[dynamicItems],
 	);
 
-	// Map-Instanz
+	// Map-Instanz (overlays werden nicht mehr benötigt)
 	const { map } = useMapLibre({
 		containerRef,
 		center,
@@ -54,9 +56,9 @@ export function MapContainer() {
 		basemapOpacity,
 	});
 
-	// --- Synchronisation & Features ---
-	// Wir trennen "Infrastruktur" (Setup) von "Features" (Drawing/Popup)
-	useMapSetup(map); // Übernimmt registerOverlays & ensureSearchMarkerLayer
+	// ✅ Setup OHNE overlays Parameter
+	useMapSetup(map);
+
 	useBasemapSync(map, basemapId);
 	useWmsFromUrl(map);
 	useTocSync(map, mergedTocItems);
@@ -69,18 +71,15 @@ export function MapContainer() {
 	return (
 		<AppShell map={map} drawing={drawing}>
 			<div className="relative h-full w-full overflow-hidden bg-slate-50">
-				{/* Die eigentliche Map-Canvas */}
 				<div ref={containerRef} className="h-full w-full" />
 
 				<div className="pointer-events-none absolute inset-0 z-10 p-4">
-					{/* TOOLBAR: Erscheint nur, wenn ein Werkzeug aktiv ist */}
 					{drawing.mode !== "select" && (
 						<div className="pointer-events-auto absolute left-4 top-20 animate-in fade-in slide-in-from-left-4">
 							<DrawingToolbar drawing={drawing} />
 						</div>
 					)}
 
-					{/* CONTROLS UNTEN RECHTS */}
 					<div className="pointer-events-auto absolute bottom-4 right-4 flex flex-col items-end gap-2">
 						<BasemapControl
 							value={basemapId}
@@ -91,7 +90,6 @@ export function MapContainer() {
 					</div>
 				</div>
 
-				{/* Overlays */}
 				{popup.open && (
 					<PopupOverlay
 						map={map}

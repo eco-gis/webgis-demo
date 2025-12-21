@@ -37,6 +37,15 @@ import {
 	X,
 } from "lucide-react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useState } from "react";
+
+interface ToolButtonProps {
+	active: boolean;
+	onClick: () => void;
+	icon: React.ReactNode;
+	label: string;
+	description: string;
+}
 
 function ToolButton({
 	active,
@@ -44,13 +53,7 @@ function ToolButton({
 	icon,
 	label,
 	description,
-}: {
-	active: boolean;
-	onClick: () => void;
-	icon: React.ReactNode;
-	label: string;
-	description: string;
-}) {
+}: ToolButtonProps) {
 	return (
 		<Button
 			variant={active ? "default" : "outline"}
@@ -95,19 +98,34 @@ export function AppSidebar({
 	drawing: ReturnType<typeof useDrawing>;
 }) {
 	const { setOpenMobile, isMobile } = useSidebar();
+	const [mounted, setMounted] = useState(false);
+
+	useEffect(() => {
+		setMounted(true);
+	}, []);
+
 	const isMeasuring = drawing.mode.startsWith("measure");
 
-	// liveValue wird hier berechnet und unten in der UI verwendet
-	const liveValue =
-		drawing.currentSketch && isMeasuring
-			? formatMeasurement(drawing.mode, drawing.currentSketch)
-			: null;
+	const liveValue = useMemo(() => {
+		if (drawing.currentSketch && isMeasuring) {
+			return formatMeasurement(drawing.mode, drawing.currentSketch);
+		}
+		return null;
+	}, [drawing.currentSketch, drawing.mode, isMeasuring]);
 
 	const handleToolClick = (mode: Parameters<typeof drawing.setMode>[0]) => {
 		drawing.setMode(mode);
 		if (isMobile) setOpenMobile(false);
 	};
 
+	if (!mounted) {
+		// Hydration Guard
+		return (
+			<Sidebar variant="sidebar" side="left" className="border-r-0 shadow-xl" />
+		);
+	}
+
+	// ✅ Hauptinhalt nach dem Mount
 	return (
 		<Sidebar
 			variant="sidebar"
@@ -155,17 +173,13 @@ export function AppSidebar({
 				</SidebarHeader>
 
 				<SidebarContent className="flex-1 min-h-0 overflow-hidden">
-					{/* EBENEN TAB */}
-					<TabsContent
-						value="toc"
-						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
-					>
-						<ScrollArea className="flex-1 h-full">
+					{/* Ebenen Tab */}
+					<TabsContent value="toc" className="h-full m-0 outline-none">
+						<ScrollArea className="h-full">
 							<div className="px-4 py-4 space-y-8 pb-24">
 								<section className="space-y-3">
 									<TocPanel />
 								</section>
-
 								<section className="pt-6 border-t border-border/40">
 									<div className="mb-4 px-1">
 										<h4 className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground/60">
@@ -178,24 +192,18 @@ export function AppSidebar({
 						</ScrollArea>
 					</TabsContent>
 
-					{/* LEGENDE TAB */}
-					<TabsContent
-						value="legend"
-						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
-					>
-						<ScrollArea className="flex-1 h-full">
+					{/* Legende Tab */}
+					<TabsContent value="legend" className="h-full m-0 outline-none">
+						<ScrollArea className="h-full">
 							<div className="px-4 py-4 pb-24">
 								<LegendPanel map={map} variant="sidebar" />
 							</div>
 						</ScrollArea>
 					</TabsContent>
 
-					{/* TOOLS TAB */}
-					<TabsContent
-						value="tools"
-						className="h-full m-0 flex flex-col min-h-0 outline-none data-[state=inactive]:hidden"
-					>
-						<ScrollArea className="flex-1 h-full">
+					{/* Tools Tab */}
+					<TabsContent value="tools" className="h-full m-0 outline-none">
+						<ScrollArea className="h-full">
 							<div className="px-4 py-4 space-y-8 pb-24">
 								<section>
 									<span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 block mb-3 px-1">
@@ -241,7 +249,7 @@ export function AppSidebar({
 									</div>
 								</section>
 
-								{/* Live Anzeige (Hier wird liveValue genutzt) */}
+								{/* Live-Messwert Anzeige */}
 								{drawing.hasSketch && (
 									<div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-4 shadow-sm animate-in slide-in-from-bottom-2 duration-200">
 										<div className="flex justify-between items-center text-primary">
@@ -274,7 +282,7 @@ export function AppSidebar({
 									</div>
 								)}
 
-								{/* Verlauf */}
+								{/* Feature Verlauf */}
 								{drawing.hasFeatures && (
 									<section className="space-y-4 pt-6 border-t border-border/40">
 										<div className="flex items-center justify-between px-1">
@@ -289,7 +297,6 @@ export function AppSidebar({
 												<Trash2 className="mr-1 h-3 w-3" /> Alle löschen
 											</Button>
 										</div>
-
 										<div className="space-y-2">
 											{drawing.allFeatures.map((f) => (
 												<div

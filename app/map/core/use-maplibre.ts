@@ -74,12 +74,10 @@ function applyOverlays(map: MaplibreMap, overlays: OverlayStyle): void {
 		if (!map.getSource(id)) map.addSource(id, spec);
 	}
 
-	// ÄNDERUNG: Wir schieben sie NICHT mehr unter den firstSymbolLayer.
-	// Wir fügen sie einfach hinzu (sie landen am Ende/Top).
 	const layers = overlays.layers ?? [];
 	for (const layer of layers) {
 		if (map.getLayer(layer.id)) continue;
-		map.addLayer(layer); // Einfach oben drauf
+		map.addLayer(layer);
 	}
 }
 
@@ -131,7 +129,6 @@ function setLayerOpacity(
 			return;
 
 		default:
-			// hillshade etc. -> no simple opacity paint prop
 			return;
 	}
 }
@@ -142,11 +139,6 @@ function isAppLayer(id: string): boolean {
 	return APP_LAYER_PREFIXES.some((p) => id.startsWith(p));
 }
 
-/**
- * Applies opacity to *basemap* layers only.
- * - Overlay layers from /data/style.json remain untouched (fully visible).
- * - App layers (dummy/draw/search-marker) remain untouched (fully visible).
- */
 function applyBasemapOpacity(
 	map: MaplibreMap,
 	overlays: OverlayStyle,
@@ -155,7 +147,6 @@ function applyBasemapOpacity(
 	const o = clamp01(opacity);
 	const overlayLayerIds = new Set((overlays.layers ?? []).map((l) => l.id));
 
-	// WICHTIG: Prüfen, ob der Style überhaupt schon bereit ist
 	const style = map.getStyle();
 	if (!style || !style.layers) return;
 
@@ -163,12 +154,12 @@ function applyBasemapOpacity(
 		if (overlayLayerIds.has(l.id)) continue;
 		if (isAppLayer(l.id)) continue;
 
-		// Zusätzlicher Check: Existiert der Layer wirklich noch im aktuellen Map-Zustand?
 		if (map.getLayer(l.id)) {
 			setLayerOpacity(map, l.id, l.type, o);
 		}
 	}
 }
+
 export function useMapLibre({
 		containerRef,
 		center,
@@ -177,11 +168,11 @@ export function useMapLibre({
 		basemapOpacity = 1,
 	}: UseMapLibreOptions): {
 		map: MaplibreMap | null;
+		overlays: OverlayStyle | null;
 	} {
 		const mapRef = useRef<MaplibreMap | null>(null);
 		const overlaysRef = useRef<OverlayStyle | null>(null);
 
-		// refs to satisfy exhaustive-deps without re-initializing the map
 		const centerRef = useRef<LngLatLike>(center);
 		const zoomRef = useRef<number>(zoom);
 		const opacityRef = useRef<number>(basemapOpacity);
@@ -203,7 +194,6 @@ export function useMapLibre({
 
 		onLoadRef.current = onLoad;
 
-		// --- init map once (guarded by mapRef.current)
 		useEffect(() => {
 			const container = containerRef.current;
 			if (!container) return;
@@ -255,7 +245,6 @@ export function useMapLibre({
 					"bottom-left",
 				);
 
-				// Style changes reset paint props -> re-apply opacity after every style load.
 				m.on("style.load", () => {
 					const ov = overlaysRef.current;
 					if (!ov) return;
@@ -283,7 +272,6 @@ export function useMapLibre({
 			};
 		}, [containerRef]);
 
-		// --- apply opacity updates (slider)
 		useEffect(() => {
 			const m = mapRef.current;
 			const ov = overlaysRef.current;
@@ -292,5 +280,8 @@ export function useMapLibre({
 			applyBasemapOpacity(m, ov, basemapOpacity);
 		}, [basemapOpacity]);
 
-		return { map };
+		return {
+			map,
+			overlays: overlaysRef.current,
+		};
 	}
