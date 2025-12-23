@@ -26,9 +26,7 @@ type TocState = {
 	setOpacity: (id: TocItemId, v: number) => void;
 };
 
-function buildDefaults(
-	items: readonly TocItemConfig[],
-): Pick<TocState, "visible" | "labelsVisible" | "opacity"> {
+function buildDefaults(items: readonly TocItemConfig[]): Pick<TocState, "visible" | "labelsVisible" | "opacity"> {
 	const visible: TocState["visible"] = {};
 	const labelsVisible: TocState["labelsVisible"] = {};
 	const opacity: TocState["opacity"] = {};
@@ -92,8 +90,7 @@ export const useTocStore = create<TocState>((set, get) => ({
 			},
 			labelsVisible: {
 				...s.labelsVisible,
-				[item.id]:
-					s.labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false,
+				[item.id]: s.labelsVisible[item.id] ?? item.defaultLabelsVisible ?? false,
 			},
 			opacity: {
 				...s.opacity,
@@ -110,7 +107,6 @@ export const useTocStore = create<TocState>((set, get) => ({
 		})),
 
 	setVisible: (id, v) => set((s) => ({ visible: { ...s.visible, [id]: v } })),
-	setLabelsVisible: (id, v) =>
-		set((s) => ({ labelsVisible: { ...s.labelsVisible, [id]: v } })),
+	setLabelsVisible: (id, v) => set((s) => ({ labelsVisible: { ...s.labelsVisible, [id]: v } })),
 	setOpacity: (id, v) => set((s) => ({ opacity: { ...s.opacity, [id]: v } })),
 }));

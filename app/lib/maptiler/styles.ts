@@ -1,11 +1,5 @@
 // app/lib/maptiler/styles.ts
-export type MapTilerStyleId =
-	| "streets-v2"
-	| "satellite"
-	| "outdoor"
-	| "basic-v2"
-	| "dataviz"
-	| "ch-swisstopo-lbm";
+export type MapTilerStyleId = "streets-v2" | "satellite" | "outdoor" | "basic-v2" | "dataviz" | "ch-swisstopo-lbm";
 
 const MAPTILER_STYLE_BASE = "https://api.maptiler.com/maps";
 

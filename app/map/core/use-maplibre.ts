@@ -1,7 +1,5 @@
-// app/map/core/use-maplibre.ts
 "use client";
 
-import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 import maplibregl, {
 	type LayerSpecification,
 	type LngLatLike,
@@ -9,279 +7,235 @@ import maplibregl, {
 	type SourceSpecification,
 } from "maplibre-gl";
 import * as pmtiles from "pmtiles";
-import { useEffect, useRef, useState } from "react";
+import { type MutableRefObject, type RefObject, useEffect, useRef, useState } from "react";
+import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
+import { reorderAppLayers } from "@/app/map/core/layer-order";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 type UseMapLibreOptions = {
-	containerRef: React.RefObject<HTMLDivElement | null>;
+	containerRef: RefObject<HTMLDivElement | null>;
 	center: LngLatLike;
 	zoom: number;
 	onLoad?: (map: MaplibreMap) => void;
-
-	/** 0..1 (applies to basemap layers, overlays + app layers stay fully visible) */
+	/** 0..1 - applies opacity to basemap layers only */
 	basemapOpacity?: number;
 };
-
-let pmtilesRegistered = false;
-
-function ensurePmtilesProtocolRegistered(): void {
-	if (pmtilesRegistered) return;
-
-	const protocol = new pmtiles.Protocol();
-	maplibregl.addProtocol("pmtiles", protocol.tile);
-
-	pmtilesRegistered = true;
-}
 
 type OverlayStyle = {
 	sources?: Record<string, SourceSpecification>;
 	layers?: LayerSpecification[];
 };
 
-// ---- overlay cache (avoid refetch on every opacity change)
-let overlaysCache: OverlayStyle | null = null;
-let overlaysPromise: Promise<OverlayStyle> | null = null;
+// ============================================================================
+// Constants & Protocol
+// ============================================================================
+
+const APP_LAYER_PREFIXES = ["waldkauz-", "wms-", "draw-", "search-marker"] as const;
+
+let pmtilesRegistered = false;
+function ensurePmtilesProtocolRegistered(): void {
+	if (pmtilesRegistered) return;
+	const protocol = new pmtiles.Protocol();
+	maplibregl.addProtocol("pmtiles", protocol.tile);
+	pmtilesRegistered = true;
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+function isAppLayer(layerId: string): boolean {
+	return APP_LAYER_PREFIXES.some((prefix) => layerId.startsWith(prefix));
+}
+
+function clamp01(value: number): number {
+	return Math.max(0, Math.min(1, value));
+}
 
 async function loadOverlayStyle(): Promise<OverlayStyle> {
-	if (overlaysCache) return overlaysCache;
-	if (overlaysPromise) return overlaysPromise;
+	const res = await fetch("/data/style.json", { cache: "no-store" });
+	if (!res.ok) throw new Error("Failed to load style.json");
+	const json: unknown = await res.json();
 
-	overlaysPromise = (async () => {
-		const res = await fetch("/data/style.json", { cache: "no-store" });
-		if (!res.ok) {
-			throw new Error(`Failed to load /data/style.json (HTTP ${res.status})`);
-		}
+	// minimal safe-ish parsing
+	if (typeof json !== "object" || json === null) return { sources: {}, layers: [] };
+	const obj = json as { sources?: unknown; layers?: unknown };
 
-		const json = (await res.json()) as OverlayStyle;
-
-		overlaysCache = {
-			sources: json.sources ?? {},
-			layers: json.layers ?? [],
-		};
-
-		return overlaysCache;
-	})();
-
-	try {
-		return await overlaysPromise;
-	} finally {
-		overlaysPromise = null;
-	}
+	return {
+		sources: (obj.sources ?? {}) as Record<string, SourceSpecification>,
+		layers: (obj.layers ?? []) as LayerSpecification[],
+	};
 }
 
 function applyOverlays(map: MaplibreMap, overlays: OverlayStyle): void {
-	const sources = overlays.sources ?? {};
+	const { sources = {}, layers = [] } = overlays;
+
 	for (const [id, spec] of Object.entries(sources)) {
 		if (!map.getSource(id)) map.addSource(id, spec);
 	}
 
-	const layers = overlays.layers ?? [];
 	for (const layer of layers) {
-		if (map.getLayer(layer.id)) continue;
-		map.addLayer(layer);
-	}
-}
-
-function clamp01(n: number): number {
-	if (n < 0) return 0;
-	if (n > 1) return 1;
-	return n;
-}
-
-function setLayerOpacity(
-	map: MaplibreMap,
-	layerId: string,
-	type: LayerSpecification["type"],
-	o: number,
-): void {
-	switch (type) {
-		case "background":
-			map.setPaintProperty(layerId, "background-opacity", o);
-			return;
-
-		case "fill":
-			map.setPaintProperty(layerId, "fill-opacity", o);
-			return;
-
-		case "line":
-			map.setPaintProperty(layerId, "line-opacity", o);
-			return;
-
-		case "circle":
-			map.setPaintProperty(layerId, "circle-opacity", o);
-			map.setPaintProperty(layerId, "circle-stroke-opacity", o);
-			return;
-
-		case "symbol":
-			map.setPaintProperty(layerId, "icon-opacity", o);
-			map.setPaintProperty(layerId, "text-opacity", o);
-			return;
-
-		case "raster":
-			map.setPaintProperty(layerId, "raster-opacity", o);
-			return;
-
-		case "fill-extrusion":
-			map.setPaintProperty(layerId, "fill-extrusion-opacity", o);
-			return;
-
-		case "heatmap":
-			map.setPaintProperty(layerId, "heatmap-opacity", o);
-			return;
-
-		default:
-			return;
-	}
-}
-
-const APP_LAYER_PREFIXES = ["dummy-", "draw-", "search-marker"] as const;
-
-function isAppLayer(id: string): boolean {
-	return APP_LAYER_PREFIXES.some((p) => id.startsWith(p));
-}
-
-function applyBasemapOpacity(
-	map: MaplibreMap,
-	overlays: OverlayStyle,
-	opacity: number,
-): void {
-	const o = clamp01(opacity);
-	const overlayLayerIds = new Set((overlays.layers ?? []).map((l) => l.id));
-
-	const style = map.getStyle();
-	if (!style || !style.layers) return;
-
-	for (const l of style.layers) {
-		if (overlayLayerIds.has(l.id)) continue;
-		if (isAppLayer(l.id)) continue;
-
-		if (map.getLayer(l.id)) {
-			setLayerOpacity(map, l.id, l.type, o);
+		if (!map.getLayer(layer.id)) {
+			try {
+				map.addLayer({
+					...layer,
+					metadata: { ...(layer.metadata ?? {}), geoRole: "overlay" },
+				} as LayerSpecification);
+			} catch (err) {
+				console.error(`❌ Failed to add layer ${layer.id}:`, err);
+			}
 		}
 	}
 }
 
-export function useMapLibre({
-		containerRef,
-		center,
-		zoom,
-		onLoad,
-		basemapOpacity = 1,
-	}: UseMapLibreOptions): {
-		map: MaplibreMap | null;
-		overlays: OverlayStyle | null;
-	} {
-		const mapRef = useRef<MaplibreMap | null>(null);
-		const overlaysRef = useRef<OverlayStyle | null>(null);
+function setupMapControls(map: MaplibreMap): void {
+	map.dragPan.enable({ linearity: 0.3 });
+	map.scrollZoom.enable();
+	map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+	map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
+}
 
-		const centerRef = useRef<LngLatLike>(center);
-		const zoomRef = useRef<number>(zoom);
-		const opacityRef = useRef<number>(basemapOpacity);
-		const onLoadRef = useRef<UseMapLibreOptions["onLoad"]>(undefined);
+function applyBasemapOpacity(map: MaplibreMap, overlays: OverlayStyle, opacity: number): void {
+	const o = clamp01(opacity);
+	const overlayLayerIds = new Set((overlays.layers ?? []).map((l) => l.id));
+	const layers = map.getStyle()?.layers;
+	if (!layers) return;
 
-		const [map, setMap] = useState<MaplibreMap | null>(null);
+	for (const layer of layers) {
+		const meta = (layer as { metadata?: unknown }).metadata as { geoRole?: unknown } | undefined;
+		const isOverlay = meta?.geoRole === "overlay";
 
-		useEffect(() => {
-			centerRef.current = center;
-		}, [center]);
+		if (isOverlay || overlayLayerIds.has(layer.id) || isAppLayer(layer.id)) continue;
 
-		useEffect(() => {
-			zoomRef.current = zoom;
-		}, [zoom]);
+		const id = layer.id;
 
-		useEffect(() => {
-			opacityRef.current = basemapOpacity;
-		}, [basemapOpacity]);
+		if (layer.type === "symbol") {
+			map.setPaintProperty(id, "icon-opacity", o);
+			map.setPaintProperty(id, "text-opacity", o);
+			continue;
+		}
 
+		const propByType: Partial<Record<(typeof layer)["type"], string>> = {
+			fill: "fill-opacity",
+			line: "line-opacity",
+			circle: "circle-opacity",
+			raster: "raster-opacity",
+			background: "background-opacity",
+		};
+
+		const prop = propByType[layer.type];
+		if (prop) map.setPaintProperty(id, prop, o);
+	}
+}
+
+// ============================================================================
+// Event Setup
+// ============================================================================
+
+function setupMapEvents(
+	map: MaplibreMap,
+	overlaysRef: MutableRefObject<OverlayStyle | null>,
+	opacityRef: MutableRefObject<number>,
+	onLoadRef: MutableRefObject<UseMapLibreOptions["onLoad"]>,
+): () => void {
+	const restoreLayers = () => {
+		const overlays = overlaysRef.current;
+		if (!overlays) return;
+
+		applyOverlays(map, overlays);
+		map.fire("app.style.restore_dynamic");
+		reorderAppLayers(map);
+		applyBasemapOpacity(map, overlays, opacityRef.current);
+		map.fire("app.style.ready");
+	};
+
+	map.once("load", () => {
+		restoreLayers();
+		onLoadRef.current?.(map);
+	});
+
+	map.on("basemap.ready", restoreLayers);
+
+	return () => {
+		map.off("basemap.ready", restoreLayers);
+	};
+}
+
+// ============================================================================
+// Hook
+// ============================================================================
+
+export function useMapLibre({ containerRef, center, zoom, onLoad, basemapOpacity = 1 }: UseMapLibreOptions) {
+	const mapRef = useRef<MaplibreMap | null>(null);
+	const overlaysRef = useRef<OverlayStyle | null>(null);
+	const [map, setMap] = useState<MaplibreMap | null>(null);
+
+	const opacityRef = useRef(basemapOpacity);
+	useEffect(() => {
+		opacityRef.current = basemapOpacity;
+	}, [basemapOpacity]);
+
+	const onLoadRef = useRef<UseMapLibreOptions["onLoad"]>(onLoad);
+	useEffect(() => {
 		onLoadRef.current = onLoad;
+	}, [onLoad]);
 
-		useEffect(() => {
-			const container = containerRef.current;
-			if (!container) return;
-			if (mapRef.current) return;
+	useEffect(() => {
+		const container = containerRef.current;
+		if (!container || mapRef.current) return;
 
-			ensurePmtilesProtocolRegistered();
+		let cancelled = false;
 
-			const key = process.env.NEXT_PUBLIC_MAPTILER_KEY;
-			if (!key) {
-				console.error("Missing NEXT_PUBLIC_MAPTILER_KEY in environment.");
-				return;
-			}
+		ensurePmtilesProtocolRegistered();
 
-			let cancelled = false;
+		(async () => {
+			const overlays = await loadOverlayStyle();
+			if (cancelled) return;
 
-			(async () => {
-				const overlays = await loadOverlayStyle();
-				if (cancelled) return;
+			overlaysRef.current = overlays;
 
-				overlaysRef.current = overlays;
-
-				const baseStyleUrl = mapTilerStyleUrl("ch-swisstopo-lbm");
-
-				const m = new maplibregl.Map({
-					container,
-					style: baseStyleUrl,
-					center: centerRef.current,
-					zoom: zoomRef.current,
-					maxZoom: 22,
-				});
-
-				m.dragPan.enable({ linearity: 0.3 });
-				m.scrollZoom.enable();
-				m.doubleClickZoom.enable();
-				m.keyboard.enable();
-				m.touchZoomRotate.enable({ around: "center" });
-				m.touchPitch.enable();
-
-				if (process.env.NODE_ENV === "development") {
-					(window as unknown as { __MAP__?: MaplibreMap }).__MAP__ = m;
-				}
-
-				m.addControl(
-					new maplibregl.NavigationControl({ visualizePitch: true }),
-					"top-right",
-				);
-				m.addControl(
-					new maplibregl.ScaleControl({ unit: "metric" }),
-					"bottom-left",
-				);
-
-				m.on("style.load", () => {
-					const ov = overlaysRef.current;
-					if (!ov) return;
-					applyBasemapOpacity(m, ov, opacityRef.current);
-				});
-
-				m.on("load", () => {
-					applyOverlays(m, overlays);
-					applyBasemapOpacity(m, overlays, opacityRef.current);
-					onLoadRef.current?.(m);
-				});
-
-				mapRef.current = m;
-				setMap(m);
-			})().catch((err: unknown) => {
-				console.error("Map init failed:", err);
+			const m = new maplibregl.Map({
+				container,
+				style: mapTilerStyleUrl("ch-swisstopo-lbm"),
+				center,
+				zoom,
+				maxZoom: 22,
 			});
 
-			return () => {
-				cancelled = true;
-				mapRef.current?.remove();
-				mapRef.current = null;
-				overlaysRef.current = null;
-				setMap(null);
+			setupMapControls(m);
+
+			const cleanupEvents = setupMapEvents(m, overlaysRef, opacityRef, onLoadRef);
+
+			mapRef.current = m;
+			setMap(m);
+
+			// ensure cleanup removes listeners too
+			const origRemove = m.remove.bind(m);
+			m.remove = () => {
+				cleanupEvents();
+				origRemove();
+				return m;
 			};
-		}, [containerRef]);
+		})();
 
-		useEffect(() => {
-			const m = mapRef.current;
-			const ov = overlaysRef.current;
-			if (!m || !ov) return;
-
-			applyBasemapOpacity(m, ov, basemapOpacity);
-		}, [basemapOpacity]);
-
-		return {
-			map,
-			overlays: overlaysRef.current,
+		return () => {
+			cancelled = true;
+			if (mapRef.current) mapRef.current.remove();
+			mapRef.current = null;
+			setMap(null);
 		};
-	}
+		// bewusst nur einmal initialisieren:
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [center, containerRef.current, zoom]);
+
+	useEffect(() => {
+		if (map && overlaysRef.current) {
+			applyBasemapOpacity(map, overlaysRef.current, basemapOpacity);
+		}
+	}, [map, basemapOpacity]);
+
+	return { map };
+}

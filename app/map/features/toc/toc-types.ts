@@ -8,13 +8,13 @@ export type TocLegendItem = {
 };
 
 export type TocItemConfig = {
-		id: TocItemId;
-		title: string;
-		mapLayerIds?: readonly string[];
-		labelLayerIds?: readonly string[];
-		defaultVisible?: boolean;
-		defaultLabelsVisible?: boolean;
-		defaultOpacity?: number;
-		legendUrl?: string;
-		legendItems?: readonly TocLegendItem[];
-	};
+	id: TocItemId;
+	title: string;
+	mapLayerIds?: readonly string[];
+	labelLayerIds?: readonly string[];
+	defaultVisible?: boolean;
+	defaultLabelsVisible?: boolean;
+	defaultOpacity?: number;
+	legendUrl?: string;
+	legendItems?: readonly TocLegendItem[];
+};

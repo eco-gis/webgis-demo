@@ -1,45 +1,20 @@
 "use client";
 
+import DOMPurify from "dompurify";
+import { AlertCircle, ExternalLink, ImageIcon, Info, List, Loader2 } from "lucide-react";
+import type maplibregl from "maplibre-gl";
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@/app/components/ui/card";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/app/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/app/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { ScrollArea } from "@/app/components/ui/scroll-area";
-import {
-	Sheet,
-	SheetContent,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/app/components/ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/app/components/ui/sheet";
 import { useIsMobile } from "@/app/hooks/use-mobile";
 import { cn } from "@/app/lib/utils";
 import { MAP_CONFIG } from "@/app/map/config/map-config";
 import { useTocStore } from "@/app/map/features/toc/toc-store";
-import type {
-	TocItemConfig,
-	TocLegendItem,
-} from "@/app/map/features/toc/toc-types";
-import DOMPurify from "dompurify";
-import {
-	AlertCircle,
-	ExternalLink,
-	ImageIcon,
-	Info,
-	List,
-	Loader2,
-} from "lucide-react";
-import type maplibregl from "maplibre-gl";
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import type { TocItemConfig, TocLegendItem } from "@/app/map/features/toc/toc-types";
 
 // --- Types ---
 interface ExtendedTocItem extends TocItemConfig {
@@ -79,8 +54,7 @@ function isVectorSection(s: LegendSection): s is VectorSection {
 }
 
 function swatchKey(sw: LegendItem["swatch"]): string {
-	if (sw.kind === "polygon")
-		return `poly-${sw.value.fill}-${sw.value.outline ?? "none"}`;
+	if (sw.kind === "polygon") return `poly-${sw.value.fill}-${sw.value.outline ?? "none"}`;
 	return `${sw.kind}-${sw.value}`;
 }
 
@@ -94,11 +68,7 @@ function dedupeLegend(items: LegendItem[]): LegendItem[] {
 	});
 }
 
-function getPaintValue(
-	map: maplibregl.Map,
-	layerId: string,
-	prop: string,
-): unknown {
+function getPaintValue(map: maplibregl.Map, layerId: string, prop: string): unknown {
 	if (!map.getLayer(layerId)) return null;
 	return map.getPaintProperty(layerId, prop);
 }
@@ -119,25 +89,16 @@ function Swatch({ swatch }: { swatch: LegendItem["swatch"] }) {
 	if (swatch.kind === "line") {
 		return (
 			<div className="flex h-4 w-4 shrink-0 items-center justify-center">
-				<span
-					className="h-1 w-3.5 rounded-full"
-					style={{ backgroundColor: swatch.value }}
-				/>
+				<span className="h-1 w-3.5 rounded-full" style={{ backgroundColor: swatch.value }} />
 			</div>
 		);
 	}
 	if (swatch.kind === "polygon") {
 		return (
 			<div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-[2px] border border-border/30 shadow-sm">
-				<span
-					className="absolute inset-0"
-					style={{ backgroundColor: swatch.value.fill }}
-				/>
+				<span className="absolute inset-0" style={{ backgroundColor: swatch.value.fill }} />
 				{swatch.value.outline && (
-					<span
-						className="absolute inset-0 border"
-						style={{ borderColor: swatch.value.outline }}
-					/>
+					<span className="absolute inset-0 border" style={{ borderColor: swatch.value.outline }} />
 				)}
 			</div>
 		);
@@ -158,8 +119,7 @@ function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
 		});
 	}, [htmlContent]);
 
-	const isSwisstopoRest =
-		url.includes("geo.admin.ch") && url.includes("/legend");
+	const isSwisstopoRest = url.includes("geo.admin.ch") && url.includes("/legend");
 
 	useEffect(() => {
 		if (!isSwisstopoRest) {
@@ -185,9 +145,7 @@ function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
 				// Extrahiere Metadaten für Popover
 				const abstract = doc.querySelector(".legend-abstract")?.outerHTML || "";
 				const table = doc.querySelector("table")?.outerHTML || "";
-				setHtmlContent(
-					`${abstract}<div class="mt-4 overflow-x-auto">${table}</div>`,
-				);
+				setHtmlContent(`${abstract}<div class="mt-4 overflow-x-auto">${table}</div>`);
 			} catch (err) {
 				console.error("Legend Fetch Error:", err);
 				setError(true);
@@ -237,16 +195,12 @@ function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-6 gap-1.5 px-2 text-[10px] text-muted-foreground hover:text-primary hover:bg-primary/5"
-							>
+								className="h-6 gap-1.5 px-2 text-[10px] text-muted-foreground hover:text-primary hover:bg-primary/5">
 								<Info className="h-3.5 w-3.5" />
 								Details
 							</Button>
 						</PopoverTrigger>
-						<PopoverContent
-							className="w-80 text-[12px] p-4 shadow-2xl"
-							side="right"
-						>
+						<PopoverContent className="w-80 text-[12px] p-4 shadow-2xl" side="right">
 							<div className="space-y-3 max-h-96 overflow-y-auto custom-legend-html">
 								<h3 className="font-bold text-sm border-b pb-2">{title}</h3>
 								<div
@@ -257,12 +211,7 @@ function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
 							</div>
 						</PopoverContent>
 					</Popover>
-					<a
-						href={url}
-						target="_blank"
-						rel="noreferrer"
-						className="text-muted-foreground/30 hover:text-primary"
-					>
+					<a href={url} target="_blank" rel="noreferrer" className="text-muted-foreground/30 hover:text-primary">
 						<ExternalLink className="h-3 w-3" />
 					</a>
 				</div>
@@ -272,36 +221,24 @@ function WmsLegendDisplay({ url, title }: { url: string; title: string }) {
 }
 
 // --- Logic ---
-function makeSimple(
-	kind: LegendPaintKind,
-	label: string,
-	color: string,
-): LegendItem {
+function makeSimple(kind: LegendPaintKind, label: string, color: string): LegendItem {
 	return { label, swatch: { kind, value: color } };
 }
 
-function extractLegendFromPaint(
-	kind: LegendPaintKind,
-	paintValue: unknown,
-	labelFallback: string,
-): LegendItem[] {
-	if (isNonEmptyString(paintValue))
-		return [makeSimple(kind, labelFallback, paintValue)];
-	if (!Array.isArray(paintValue) || typeof paintValue[0] !== "string")
-		return [];
+function extractLegendFromPaint(kind: LegendPaintKind, paintValue: unknown, labelFallback: string): LegendItem[] {
+	if (isNonEmptyString(paintValue)) return [makeSimple(kind, labelFallback, paintValue)];
+	if (!Array.isArray(paintValue) || typeof paintValue[0] !== "string") return [];
 	const expr = paintValue as Expr;
 	const op = expr[0] as string;
 	if (op === "step") {
 		const out: LegendItem[] = [];
 		const base = expr[2];
 		const first = expr[3];
-		if (isNonEmptyString(base) && first !== undefined)
-			out.push(makeSimple(kind, `< ${String(first)}`, base));
+		if (isNonEmptyString(base) && first !== undefined) out.push(makeSimple(kind, `< ${String(first)}`, base));
 		for (let i = 3; i + 1 < expr.length; i += 2) {
 			const stop = expr[i];
 			const col = expr[i + 1];
-			if (isNonEmptyString(col))
-				out.push(makeSimple(kind, `≥ ${String(stop)}`, col));
+			if (isNonEmptyString(col)) out.push(makeSimple(kind, `≥ ${String(stop)}`, col));
 		}
 		return out;
 	}
@@ -319,10 +256,7 @@ function extractLegendFromPaint(
 	return [];
 }
 
-function buildLegendForTocItem(
-	map: maplibregl.Map,
-	toc: ExtendedTocItem,
-): LegendItem[] {
+function buildLegendForTocItem(map: maplibregl.Map, toc: ExtendedTocItem): LegendItem[] {
 	const ids = toc.mapLayerIds || [];
 	const fillId = ids.find((id) => map.getLayer(id)?.type === "fill");
 	const lineId = ids.find((id) => map.getLayer(id)?.type === "line");
@@ -347,22 +281,9 @@ function buildLegendForTocItem(
 		}
 		return dedupeLegend(fillLegend);
 	}
-	if (lineId)
-		return dedupeLegend(
-			extractLegendFromPaint(
-				"line",
-				getPaintValue(map, lineId, "line-color"),
-				toc.title,
-			),
-		);
+	if (lineId) return dedupeLegend(extractLegendFromPaint("line", getPaintValue(map, lineId, "line-color"), toc.title));
 	if (circleId)
-		return dedupeLegend(
-			extractLegendFromPaint(
-				"circle",
-				getPaintValue(map, circleId, "circle-color"),
-				toc.title,
-			),
-		);
+		return dedupeLegend(extractLegendFromPaint("circle", getPaintValue(map, circleId, "circle-color"), toc.title));
 	return [];
 }
 
@@ -371,10 +292,7 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 	const visible = useTocStore((s) => s.visible);
 	const dynamicItems = useTocStore((s) => s.dynamicItems) as ExtendedTocItem[];
 	const [sections, setSections] = useState<LegendSection[]>([]);
-	const allItems = useMemo(
-		() => [...(MAP_CONFIG.tocItems as ExtendedTocItem[]), ...dynamicItems],
-		[dynamicItems],
-	);
+	const allItems = useMemo(() => [...(MAP_CONFIG.tocItems as ExtendedTocItem[]), ...dynamicItems], [dynamicItems]);
 
 	useEffect(() => {
 		if (!map) return;
@@ -398,18 +316,12 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 					continue;
 				}
 				const vectorItems = buildLegendForTocItem(map, item);
-				if (vectorItems.length > 0)
-					next.push({ kind: "vector", item, legend: vectorItems });
+				if (vectorItems.length > 0) next.push({ kind: "vector", item, legend: vectorItems });
 			}
 			const grouped: LegendSection[] = [];
 			for (const sec of next) {
 				const last = grouped[grouped.length - 1];
-				if (
-					last &&
-					last.kind === "vector" &&
-					sec.kind === "vector" &&
-					last.item.title === sec.item.title
-				) {
+				if (last && last.kind === "vector" && sec.kind === "vector" && last.item.title === sec.item.title) {
 					(last as VectorSection).legend = dedupeLegend([
 						...(last as VectorSection).legend,
 						...(sec as VectorSection).legend,
@@ -429,9 +341,7 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 		return (
 			<div className="flex h-40 flex-col items-center justify-center space-y-3 text-muted-foreground/40 animate-in fade-in duration-500">
 				<ImageIcon className="h-10 w-10 stroke-1" />
-				<p className="text-[11px] font-medium tracking-wide uppercase">
-					Keine aktiven Ebenen
-				</p>
+				<p className="text-[11px] font-medium tracking-wide uppercase">Keine aktiven Ebenen</p>
 			</div>
 		);
 
@@ -439,8 +349,7 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 		<div className="space-y-6 animate-in fade-in slide-in-from-bottom-1 duration-300">
 			{sections.map((sec, idx) => {
 				const isSingleEntry = sec.kind === "vector" && sec.legend.length === 1;
-				const showHeader =
-					!isSingleEntry || sec.legend[0].label !== sec.item.title;
+				const showHeader = !isSingleEntry || sec.legend[0].label !== sec.item.title;
 				return (
 					<div key={`${sec.item.id}-${idx}`} className="flex flex-col gap-2">
 						{showHeader && (
@@ -451,10 +360,7 @@ function LegendList({ map }: { map: maplibregl.Map | null }) {
 						{isVectorSection(sec) ? (
 							<div className="space-y-1.5 px-0.5">
 								{sec.legend.map((li) => (
-									<div
-										key={`${li.label}-${swatchKey(li.swatch)}`}
-										className="flex items-center gap-3 py-0.5 group"
-									>
+									<div key={`${li.label}-${swatchKey(li.swatch)}`} className="flex items-center gap-3 py-0.5 group">
 										<Swatch swatch={li.swatch} />
 										<span className="text-[12px] leading-tight text-foreground/80 group-hover:text-foreground transition-colors">
 											{li.label}
@@ -502,15 +408,11 @@ export function LegendPanel({
 					<Button
 						variant="outline"
 						size="sm"
-						className="fixed bottom-24 right-4 z-50 h-12 w-12 rounded-2xl bg-background shadow-xl border-primary/20 p-0 text-primary"
-					>
+						className="fixed bottom-24 right-4 z-50 h-12 w-12 rounded-2xl bg-background shadow-xl border-primary/20 p-0 text-primary">
 						<List className="h-6 w-6" />
 					</Button>
 				</SheetTrigger>
-				<SheetContent
-					side="bottom"
-					className="rounded-t-4xl h-[75vh] px-0 pb-10 border-t-2 border-primary/10"
-				>
+				<SheetContent side="bottom" className="rounded-t-4xl h-[75vh] px-0 pb-10 border-t-2 border-primary/10">
 					<SheetHeader className="px-6 border-b pb-4">
 						<SheetTitle className="text-left text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
 							<List className="h-4 w-4" /> Legende
@@ -525,8 +427,7 @@ export function LegendPanel({
 			className={cn(
 				"fixed right-6 top-24 z-40 w-80 border-border/40 shadow-2xl backdrop-blur-xl bg-background/95 rounded-2xl overflow-hidden",
 				className,
-			)}
-		>
+			)}>
 			<CardHeader className="border-b bg-muted/30 py-3.5 px-5">
 				<CardTitle className="flex items-center gap-2.5 text-[11px] font-bold uppercase tracking-[0.2em] text-secondary">
 					<List className="h-4 w-4 text-primary" /> Legende

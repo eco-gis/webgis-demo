@@ -3,17 +3,17 @@
 export type BasemapId = "swisstopo-lbm" | "streets" | "outdoor" | "satellite";
 
 export type BasemapDef = Readonly<{
-		id: BasemapId;
-		label: string;
+	id: BasemapId;
+	label: string;
 
-		// mapTilerStyleUrl(styleId)
-		styleId: string;
+	// mapTilerStyleUrl(styleId)
+	styleId: string;
 
-		description?: string;
+	description?: string;
 
-		// ✅ für BasemapControl Thumbnail-Button
-		thumbnailUrl?: string;
-	}>;
+	// ✅ für BasemapControl Thumbnail-Button
+	thumbnailUrl?: string;
+}>;
 
 export const BASEMAPS: readonly BasemapDef[] = [
 	{

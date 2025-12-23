@@ -31,9 +31,7 @@ export type BasemapStore = {
 	isHydrated: boolean;
 };
 
-export function useBasemapStore(
-	fallback: BasemapId = "swisstopo-lbm",
-): BasemapStore {
+export function useBasemapStore(fallback: BasemapId = "swisstopo-lbm"): BasemapStore {
 	// ✅ SSR/Client consistent: start with fallback always
 	const [basemapId, setBasemapIdState] = useState<BasemapId>(fallback);
 	const [isHydrated, setIsHydrated] = useState(false);

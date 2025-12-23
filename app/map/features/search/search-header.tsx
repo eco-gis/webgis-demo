@@ -6,11 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
-import {
-	Popover,
-	PopoverContent,
-	PopoverTrigger,
-} from "@/app/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/app/components/ui/popover";
 import { Spinner } from "@/app/components/ui/spinner";
 import { cn } from "@/app/lib/utils";
 import { applySearchResult, clearSearchMarker } from "./apply-search-results";
@@ -65,7 +61,7 @@ export function SearchHeader({ map }: { map: Maplibre | null }) {
 								handleSelect(results[0]);
 							}
 						}}
-						placeholder="Ort suchen (z.B. Zürich HB)"
+						placeholder="Ort | Adresse suchen"
 						className="h-9 pl-8 pr-9"
 						disabled={!canSearch}
 					/>
@@ -76,8 +72,7 @@ export function SearchHeader({ map }: { map: Maplibre | null }) {
 							size="icon"
 							className="absolute right-0 top-0 h-9 w-9 hover:bg-transparent"
 							onClick={handleClear}
-							aria-label="Suche leeren"
-						>
+							aria-label="Suche leeren">
 							<X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
 						</Button>
 					)}
@@ -90,17 +85,14 @@ export function SearchHeader({ map }: { map: Maplibre | null }) {
 					side="bottom"
 					sideOffset={8}
 					className="w-90 p-2 shadow-xl"
-					onOpenAutoFocus={(e) => e.preventDefault()}
-				>
+					onOpenAutoFocus={(e) => e.preventDefault()}>
 					{isLoading ? (
 						<div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
 							<Spinner className="h-3 w-3" />
 							Suche läuft...
 						</div>
 					) : error ? (
-						<div className="px-2 py-2 text-xs text-destructive bg-destructive/10 rounded-sm">
-							{error}
-						</div>
+						<div className="px-2 py-2 text-xs text-destructive bg-destructive/10 rounded-sm">{error}</div>
 					) : results.length > 0 ? (
 						<div className="max-h-64 space-y-1 overflow-y-auto">
 							{results.map((r) => (
@@ -111,19 +103,14 @@ export function SearchHeader({ map }: { map: Maplibre | null }) {
 										"w-full rounded-md px-2 py-2 text-left text-xs transition-colors hover:bg-accent",
 										"focus:bg-accent focus:outline-none",
 									)}
-									onClick={() => handleSelect(r)}
-								>
+									onClick={() => handleSelect(r)}>
 									<div className="font-medium line-clamp-1">{r.text}</div>
-									<div className="text-[10px] text-muted-foreground line-clamp-1">
-										{r.place_name}
-									</div>
+									<div className="text-[10px] text-muted-foreground line-clamp-1">{r.place_name}</div>
 								</button>
 							))}
 						</div>
 					) : query.trim().length > 0 ? (
-						<div className="px-2 py-4 text-center text-xs text-muted-foreground">
-							Keine Treffer für "{query}"
-						</div>
+						<div className="px-2 py-4 text-center text-xs text-muted-foreground">Keine Treffer für "{query}"</div>
 					) : null}
 				</PopoverContent>
 			)}

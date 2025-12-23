@@ -1,9 +1,5 @@
 // app/map/features/search/search-marker.ts
-import type {
-	LayerSpecification,
-	Map as MaplibreMap,
-	SourceSpecification,
-} from "maplibre-gl";
+import type { LayerSpecification, Map as MaplibreMap, SourceSpecification } from "maplibre-gl";
 
 export const SEARCH_MARKER_SOURCE_ID = "search-marker";
 const SEARCH_MARKER_LAYER_ID = "search-marker-layer";

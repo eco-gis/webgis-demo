@@ -6,13 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { PopupLayerGroup, PopupState } from "./types";
 
 function isMapLibreMap(m: unknown): m is maplibregl.Map {
-	return Boolean(
-		m &&
-			typeof m === "object" &&
-			"on" in m &&
-			"off" in m &&
-			"queryRenderedFeatures" in m,
-	);
+	return Boolean(m && typeof m === "object" && "on" in m && "off" in m && "queryRenderedFeatures" in m);
 }
 
 function resolveMap(input: unknown): maplibregl.Map | null {
@@ -51,32 +45,20 @@ function pickStableId(props: Record<string, unknown>): string | null {
 
 function featureKey(f: maplibregl.MapGeoJSONFeature): string {
 	const src = typeof f.source === "string" ? f.source : "unknown-source";
-	const srcLayer =
-		typeof f.sourceLayer === "string" ? f.sourceLayer : "unknown-sourcelayer";
+	const srcLayer = typeof f.sourceLayer === "string" ? f.sourceLayer : "unknown-sourcelayer";
 
-	const explicitId =
-		typeof f.id === "string" || typeof f.id === "number" ? String(f.id) : null;
+	const explicitId = typeof f.id === "string" || typeof f.id === "number" ? String(f.id) : null;
 
-	const props =
-		f.properties && typeof f.properties === "object"
-			? (f.properties as Record<string, unknown>)
-			: {};
+	const props = f.properties && typeof f.properties === "object" ? (f.properties as Record<string, unknown>) : {};
 
 	const stableId = explicitId ?? pickStableId(props);
 
-	const fallback =
-		stableId ??
-		`${f.geometry?.type ?? "geom"}:${Object.keys(props)
-			.slice(0, 3)
-			.sort()
-			.join(",")}`;
+	const fallback = stableId ?? `${f.geometry?.type ?? "geom"}:${Object.keys(props).slice(0, 3).sort().join(",")}`;
 
 	return `${src}::${srcLayer}::${fallback}`;
 }
 
-function dedupe(
-	features: maplibregl.MapGeoJSONFeature[],
-): maplibregl.MapGeoJSONFeature[] {
+function dedupe(features: maplibregl.MapGeoJSONFeature[]): maplibregl.MapGeoJSONFeature[] {
 	const seen = new Set<string>();
 	const out: maplibregl.MapGeoJSONFeature[] = [];
 
@@ -90,9 +72,7 @@ function dedupe(
 	return out;
 }
 
-function groupByLayer(
-	features: maplibregl.MapGeoJSONFeature[],
-): PopupLayerGroup[] {
+function groupByLayer(features: maplibregl.MapGeoJSONFeature[]): PopupLayerGroup[] {
 	const m = new Map<string, maplibregl.MapGeoJSONFeature[]>();
 
 	for (const f of features) {
@@ -122,17 +102,61 @@ export function useMapPopup(
 ) {
 	const [state, setState] = useState<PopupState>({ open: false });
 
-	const interactiveLayerIds = useMemo(
-		() => opts?.interactiveLayerIds ?? null,
-		[opts?.interactiveLayerIds],
-	);
+	const interactiveLayerIds = useMemo(() => opts?.interactiveLayerIds ?? null, [opts?.interactiveLayerIds]);
 
-	const interactiveSourceIds = useMemo(
-		() => opts?.interactiveSourceIds ?? null,
-		[opts?.interactiveSourceIds],
-	);
+	const interactiveSourceIds = useMemo(() => opts?.interactiveSourceIds ?? null, [opts?.interactiveSourceIds]);
 
 	const tolerancePx = opts?.tolerancePx ?? 0;
+
+	useEffect(() => {
+		const map = resolveMap(mapLike);
+		if (!map) return;
+
+		const setCursor = (cursor: string) => {
+			const canvas = map.getCanvas();
+			if (canvas.style.cursor !== cursor) canvas.style.cursor = cursor;
+		};
+
+		const getValidLayerIds = (): string[] | null => {
+			if (!interactiveLayerIds) return null;
+			const style = map.getStyle();
+			const existingLayerIds = style?.layers?.map((l) => l.id) ?? [];
+			return interactiveLayerIds.filter((id) => existingLayerIds.includes(id));
+		};
+
+		const onMove = (e: maplibregl.MapMouseEvent) => {
+			const validLayerIds = getValidLayerIds();
+
+			const qOpts: maplibregl.QueryRenderedFeaturesOptions | undefined =
+				validLayerIds && validLayerIds.length > 0
+					? { layers: validLayerIds }
+					: interactiveLayerIds
+						? { layers: [] } // explizit: "keine gültigen Layer" -> keine Hits
+						: undefined;
+
+			let hits = map.queryRenderedFeatures(e.point, qOpts).filter(isUsefulFeature);
+
+			if (interactiveSourceIds) {
+				hits = hits.filter((f) => {
+					const src = typeof f.source === "string" ? f.source : null;
+					return src ? interactiveSourceIds.includes(src) : false;
+				});
+			}
+
+			setCursor(hits.length > 0 ? "pointer" : "");
+		};
+
+		const onLeave = () => setCursor("");
+
+		map.on("mousemove", onMove);
+		map.on("mouseleave", onLeave);
+
+		return () => {
+			map.off("mousemove", onMove);
+			map.off("mouseleave", onLeave);
+			setCursor("");
+		};
+	}, [mapLike, interactiveLayerIds, interactiveSourceIds]);
 
 	useEffect(() => {
 		const map = resolveMap(mapLike);
@@ -151,9 +175,7 @@ export function useMapPopup(
 			const style = map.getStyle();
 			const existingLayerIds = style?.layers?.map((l) => l.id) ?? [];
 
-			const validLayerIds = interactiveLayerIds?.filter((id) =>
-				existingLayerIds.includes(id),
-			);
+			const validLayerIds = interactiveLayerIds?.filter((id) => existingLayerIds.includes(id));
 
 			const qOpts: maplibregl.QueryRenderedFeaturesOptions | undefined =
 				validLayerIds && validLayerIds.length > 0
@@ -162,9 +184,7 @@ export function useMapPopup(
 						? { layers: [] }
 						: undefined;
 
-			let hits = dedupe(
-				map.queryRenderedFeatures(bbox, qOpts).filter(isUsefulFeature),
-			);
+			let hits = dedupe(map.queryRenderedFeatures(bbox, qOpts).filter(isUsefulFeature));
 
 			if (interactiveSourceIds) {
 				hits = hits.filter((f) => {
@@ -178,30 +198,21 @@ export function useMapPopup(
 				return;
 			}
 
-			// --- CLUSTER LOGIK FIX ---
 			const clusterFeature = hits.find((f) => f.properties?.cluster);
 			if (clusterFeature && clusterFeature.geometry.type === "Point") {
 				const sourceId = clusterFeature.source;
 				const clusterId = clusterFeature.id as number;
-				const coords = (clusterFeature.geometry as GeoJSON.Point)
-					.coordinates as [number, number];
+				const coords = (clusterFeature.geometry as GeoJSON.Point).coordinates as [number, number];
 
 				const source = map.getSource(sourceId) as maplibregl.GeoJSONSource;
 
 				if (source && typeof source.getClusterExpansionZoom === "function") {
-					// Fix: Use Promise-based API
 					source
 						.getClusterExpansionZoom(clusterId)
 						.then((zoom) => {
-							map.easeTo({
-								center: coords,
-								zoom: zoom + 0.5,
-							});
+							map.easeTo({ center: coords, zoom: zoom + 0.5 });
 						})
-						.catch(() => {
-							// Ignore errors silently
-						});
-
+						.catch(() => {});
 					setState({ open: false });
 					return;
 				}

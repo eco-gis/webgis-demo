@@ -1,9 +1,4 @@
-// app/map/features/wms/wms-maplibre.ts
-import type {
-	LayerSpecification,
-	Map as MapLibreMap,
-	RasterSourceSpecification,
-} from "maplibre-gl";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import type { WmsUrlConfig } from "./wms-types";
 
 /**
@@ -34,34 +29,41 @@ export function removeWmsLayer(map: MapLibreMap, id: string): void {
 }
 
 export function upsertWmsLayer(map: MapLibreMap, cfg: WmsUrlConfig): void {
-	if (!map.getSource(cfg.id)) {
-		// Falls die URL {z} enthält, ist es bereits ein WMTS Template
+	const sourceId = cfg.id;
+
+	if (!map.getSource(sourceId)) {
+		// 1. Source prüfen und ggf. hinzufügen
 		const isWmts = cfg.baseUrl.includes("{z}");
 		const tileUrl = isWmts ? cfg.baseUrl : buildClassicWmsUrl(cfg);
 
-		const sourceSpec: RasterSourceSpecification = {
+		map.addSource(sourceId, {
 			type: "raster",
 			tiles: [tileUrl],
 			tileSize: 256,
 			attribution: "© swisstopo",
-		};
-
-		map.addSource(cfg.id, sourceSpec);
+		});
 	}
 
-	if (!map.getLayer(cfg.id)) {
-		const layerSpec: LayerSpecification = {
-			id: cfg.id,
-			type: "raster",
-			source: cfg.id,
-			paint: {
-				"raster-opacity": cfg.opacity ?? 1,
-				"raster-resampling": "linear",
-			},
-		};
-		map.addLayer(layerSpec);
+	if (!map.getLayer(sourceId)) {
+		// 2. Layer prüfen und ggf. hinzufügen
+		// Wir erzwingen eine kurze Validierung, ob die Source existiert
+		if (map.getSource(sourceId)) {
+			map.addLayer({
+				id: sourceId,
+				type: "raster",
+				source: sourceId,
+				metadata: {
+					geoRole: "overlay",
+					isDynamic: true,
+				},
+				paint: {
+					"raster-opacity": cfg.opacity ?? 1,
+					"raster-resampling": "linear",
+				},
+			});
+		}
 	} else {
-		// Falls der Layer schon existiert, nur Opazität updaten
-		map.setPaintProperty(cfg.id, "raster-opacity", cfg.opacity ?? 1);
+		// Update falls vorhanden
+		map.setPaintProperty(sourceId, "raster-opacity", cfg.opacity ?? 1);
 	}
 }

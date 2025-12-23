@@ -7,8 +7,7 @@ export type SwisstopoLayerInfo = {
 	format: string;
 };
 
-const LAYERS_CONFIG_URL =
-	"https://api3.geo.admin.ch/rest/services/Config/layersConfig?lang=de";
+const LAYERS_CONFIG_URL = "https://api3.geo.admin.ch/rest/services/Config/layersConfig?lang=de";
 
 export async function loadSwisstopoCatalog(): Promise<SwisstopoLayerInfo[]> {
 	const res = await fetch(LAYERS_CONFIG_URL);

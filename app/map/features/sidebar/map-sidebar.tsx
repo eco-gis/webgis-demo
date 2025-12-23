@@ -1,43 +1,17 @@
 "use client";
 
+import { Check, Globe, Info, Layers, List, Pencil, Ruler, Shapes, Trash2, Undo2, Wrench, X } from "lucide-react";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { ScrollArea } from "@/app/components/ui/scroll-area";
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarHeader,
-	useSidebar,
-} from "@/app/components/ui/sidebar";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/app/components/ui/tabs";
+import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from "@/app/components/ui/sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { cn } from "@/app/lib/utils";
-import {
-	formatMeasurement,
-	type useDrawing,
-} from "@/app/map/features/drawing/use-drawing";
+import { formatMeasurement, type useDrawing } from "@/app/map/features/drawing/use-drawing";
 import { LegendPanel } from "@/app/map/features/legend/legend-panel";
 import { TocPanel } from "@/app/map/features/toc/toc-panel";
 import { SwisstopoWmsPanel } from "@/app/map/features/wms/swisstopo-wms-panel";
-import {
-	Check,
-	Globe,
-	Info,
-	Layers,
-	List,
-	Pencil,
-	Ruler,
-	Shapes,
-	Trash2,
-	Undo2,
-	Wrench,
-	X,
-} from "lucide-react";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import { useEffect, useMemo, useState } from "react";
 
 interface ToolButtonProps {
 	active: boolean;
@@ -47,13 +21,7 @@ interface ToolButtonProps {
 	description: string;
 }
 
-function ToolButton({
-	active,
-	onClick,
-	icon,
-	label,
-	description,
-}: ToolButtonProps) {
+function ToolButton({ active, onClick, icon, label, description }: ToolButtonProps) {
 	return (
 		<Button
 			variant={active ? "default" : "outline"}
@@ -63,26 +31,15 @@ function ToolButton({
 					? "border-primary bg-primary text-primary-foreground shadow-lg scale-[1.01]"
 					: "border-border/40 bg-background hover:bg-muted text-foreground shadow-sm",
 			)}
-			onClick={onClick}
-		>
-			<div
-				className={cn(
-					"p-2 rounded-lg shrink-0",
-					active ? "bg-white/20" : "bg-primary/5 text-primary",
-				)}
-			>
-				{icon}
-			</div>
+			onClick={onClick}>
+			<div className={cn("p-2 rounded-lg shrink-0", active ? "bg-white/20" : "bg-primary/5 text-primary")}>{icon}</div>
 			<div className="flex flex-col items-start leading-tight text-left overflow-hidden">
-				<span className="text-sm md:text-[11px] font-bold truncate w-full">
-					{label}
-				</span>
+				<span className="text-sm md:text-[11px] font-bold truncate w-full">{label}</span>
 				<span
 					className={cn(
 						"text-xs md:text-[9px] truncate w-full",
 						active ? "text-primary-foreground/70" : "text-muted-foreground",
-					)}
-				>
+					)}>
 					{description}
 				</span>
 			</div>
@@ -90,13 +47,7 @@ function ToolButton({
 	);
 }
 
-export function AppSidebar({
-	map,
-	drawing,
-}: {
-	map: MaplibreMap | null;
-	drawing: ReturnType<typeof useDrawing>;
-}) {
+export function AppSidebar({ map, drawing }: { map: MaplibreMap | null; drawing: ReturnType<typeof useDrawing> }) {
 	const { setOpenMobile, isMobile } = useSidebar();
 	const [mounted, setMounted] = useState(false);
 
@@ -120,53 +71,30 @@ export function AppSidebar({
 
 	if (!mounted) {
 		// Hydration Guard
-		return (
-			<Sidebar variant="sidebar" side="left" className="border-r-0 shadow-xl" />
-		);
+		return <Sidebar variant="sidebar" side="left" className="border-r-0 shadow-xl" />;
 	}
 
 	// ✅ Hauptinhalt nach dem Mount
 	return (
-		<Sidebar
-			variant="sidebar"
-			side="left"
-			className="border-r-0 shadow-xl overflow-hidden"
-		>
-			<Tabs
-				defaultValue="toc"
-				className="flex flex-col h-full overflow-hidden bg-background"
-			>
+		<Sidebar variant="sidebar" side="left" className="border-r-0 shadow-xl overflow-hidden">
+			<Tabs defaultValue="toc" className="flex flex-col h-full overflow-hidden bg-background">
 				<SidebarHeader className="p-4 pb-2 bg-background shrink-0 z-20">
 					<div className="flex items-center justify-between mb-4 md:hidden">
 						<span className="font-bold text-[10px] tracking-[0.2em] text-muted-foreground px-1 uppercase">
 							Navigation
 						</span>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="rounded-full h-8 w-8"
-							onClick={() => setOpenMobile(false)}
-						>
+						<Button variant="ghost" size="icon" className="rounded-full h-8 w-8" onClick={() => setOpenMobile(false)}>
 							<X className="h-5 w-5" />
 						</Button>
 					</div>
 					<TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 h-11 md:h-9 rounded-xl">
-						<TabsTrigger
-							value="toc"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
-						>
+						<TabsTrigger value="toc" className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg">
 							<Layers className="h-3.5 w-3.5" /> Ebenen
 						</TabsTrigger>
-						<TabsTrigger
-							value="legend"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
-						>
+						<TabsTrigger value="legend" className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg">
 							<List className="h-3.5 w-3.5" /> Legende
 						</TabsTrigger>
-						<TabsTrigger
-							value="tools"
-							className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg"
-						>
+						<TabsTrigger value="tools" className="gap-2 text-[11px] md:text-[10px] py-1.5 rounded-lg">
 							<Wrench className="h-3.5 w-3.5" /> Tools
 						</TabsTrigger>
 					</TabsList>
@@ -266,15 +194,13 @@ export function AppSidebar({
 													size="icon"
 													variant="outline"
 													className="h-10 w-10 rounded-xl bg-background border-2 border-primary/10 hover:border-primary/40"
-													onClick={drawing.undoLast}
-												>
+													onClick={drawing.undoLast}>
 													<Undo2 className="h-4 w-4" />
 												</Button>
 												<Button
 													size="icon"
 													className="h-10 w-10 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
-													onClick={drawing.finish}
-												>
+													onClick={drawing.finish}>
 													<Check className="h-4 w-4" />
 												</Button>
 											</div>
@@ -292,8 +218,7 @@ export function AppSidebar({
 											<Button
 												variant="ghost"
 												className="h-auto p-0 text-[10px] text-destructive hover:bg-transparent font-bold uppercase"
-												onClick={drawing.clearAll}
-											>
+												onClick={drawing.clearAll}>
 												<Trash2 className="mr-1 h-3 w-3" /> Alle löschen
 											</Button>
 										</div>
@@ -301,8 +226,7 @@ export function AppSidebar({
 											{drawing.allFeatures.map((f) => (
 												<div
 													key={f.properties?.id}
-													className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border/5"
-												>
+													className="flex justify-between items-center bg-muted/30 p-3 rounded-xl border border-border/5">
 													<div className="flex items-center gap-3 overflow-hidden">
 														<div className="p-2 rounded-lg bg-background border border-border/40 text-primary shrink-0">
 															{f.properties?.kind === "polygon" ? (
@@ -313,9 +237,7 @@ export function AppSidebar({
 														</div>
 														<div className="flex flex-col overflow-hidden">
 															<span className="text-[9px] text-muted-foreground/70 font-bold uppercase tracking-tighter text-left">
-																{f.properties?.usage === "measure"
-																	? "Messung"
-																	: "Skizze"}
+																{f.properties?.usage === "measure" ? "Messung" : "Skizze"}
 															</span>
 															<span className="font-mono text-sm font-bold truncate text-left">
 																{formatMeasurement(f.properties?.kind, f)}
@@ -326,10 +248,7 @@ export function AppSidebar({
 														variant="ghost"
 														size="icon"
 														className="h-9 w-9 text-muted-foreground/40 hover:text-destructive shrink-0"
-														onClick={() =>
-															drawing.deleteFeature(f.properties?.id)
-														}
-													>
+														onClick={() => drawing.deleteFeature(f.properties?.id)}>
 														<Trash2 className="h-4 w-4" />
 													</Button>
 												</div>

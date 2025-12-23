@@ -1,0 +1,144 @@
+{
+	"sourceCsv": "saeckelamtshuesli_feb25.csv",
+	"site": "Rändli",
+	"year": 2025,
+	"month": 2,
+	"bucketMinutes": null,
+	"metric": "calls_daily",
+	"presenceValue": 1,
+	"maxGapMinutes": 1,
+	"totalPresenceMinutes": 223,
+	"totalCallEvents": 132,
+	"series": [
+		{
+			"t": "2025-02-01",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2025-02-02",
+			"presenceMinutes": 10,
+			"callEvents": 7
+		},
+		{
+			"t": "2025-02-03",
+			"presenceMinutes": 5,
+			"callEvents": 4
+		},
+		{
+			"t": "2025-02-04",
+			"presenceMinutes": 7,
+			"callEvents": 4
+		},
+		{
+			"t": "2025-02-05",
+			"presenceMinutes": 5,
+			"callEvents": 4
+		},
+		{
+			"t": "2025-02-07",
+			"presenceMinutes": 24,
+			"callEvents": 7
+		},
+		{
+			"t": "2025-02-08",
+			"presenceMinutes": 3,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-09",
+			"presenceMinutes": 20,
+			"callEvents": 12
+		},
+		{
+			"t": "2025-02-10",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-11",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2025-02-12",
+			"presenceMinutes": 13,
+			"callEvents": 9
+		},
+		{
+			"t": "2025-02-13",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-14",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2025-02-15",
+			"presenceMinutes": 3,
+			"callEvents": 3
+		},
+		{
+			"t": "2025-02-16",
+			"presenceMinutes": 12,
+			"callEvents": 9
+		},
+		{
+			"t": "2025-02-17",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2025-02-18",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2025-02-19",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-21",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-22",
+			"presenceMinutes": 11,
+			"callEvents": 9
+		},
+		{
+			"t": "2025-02-23",
+			"presenceMinutes": 30,
+			"callEvents": 16
+		},
+		{
+			"t": "2025-02-24",
+			"presenceMinutes": 40,
+			"callEvents": 19
+		},
+		{
+			"t": "2025-02-25",
+			"presenceMinutes": 3,
+			"callEvents": 2
+		},
+		{
+			"t": "2025-02-26",
+			"presenceMinutes": 3,
+			"callEvents": 3
+		},
+		{
+			"t": "2025-02-27",
+			"presenceMinutes": 15,
+			"callEvents": 3
+		},
+		{
+			"t": "2025-02-28",
+			"presenceMinutes": 6,
+			"callEvents": 6
+		}
+	]
+}

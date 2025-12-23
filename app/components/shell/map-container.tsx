@@ -1,5 +1,8 @@
+// ./app/components/shell/map-container.tsx
 "use client";
 
+import type { Map as MapLibreMap } from "maplibre-gl";
+import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/app/components/shell/app-shell";
 import { BasemapControl } from "@/app/map/basemaps/basemap-control";
 import { useBasemapStore } from "@/app/map/basemaps/basemap-store";
@@ -14,41 +17,112 @@ import { useMapPopup } from "@/app/map/features/popup/use-map-popup";
 import { useTocStore } from "@/app/map/features/toc/toc-store";
 import { useTocSync } from "@/app/map/features/toc/use-toc-sync";
 import { useWmsFromUrl } from "@/app/map/features/wms/use-wms-from-url";
-import { useMemo, useRef, useState } from "react";
 
-// Helper außerhalb der Komponente für bessere Performance (keine Neu-Deklaration)
-const parseCenter = (raw?: string): [number, number] => {
-	if (!raw) return [8.55, 47.37];
-	const parts = raw.split(",").map(Number);
-	return parts.length === 2 ? [parts[0], parts[1]] : [8.55, 47.37];
-};
+const DEFAULT_CENTER: [number, number] = [8.55, 47.37];
+const DEFAULT_ZOOM = 11;
 
-// app/map/page.tsx oder MapContainer.tsx
+function parseCenter(raw?: string): [number, number] {
+	if (!raw) return DEFAULT_CENTER;
+
+	const parts = raw
+		.split(",")
+		.map((p) => Number(p.trim()))
+		.filter((n) => Number.isFinite(n));
+
+	return parts.length === 2 ? [parts[0], parts[1]] : DEFAULT_CENTER;
+}
+
+function readZoom(raw?: string): number {
+	const z = Number(raw);
+	return Number.isFinite(z) ? z : DEFAULT_ZOOM;
+}
+
+function setCssVarPx(host: HTMLElement, name: string, px: number): void {
+	host.style.setProperty(name, `${Math.max(0, Math.round(px))}px`);
+}
+
+/**
+ * Reserviert "No-fly zones" für das Popup, damit es Controls nicht überdeckt.
+ * Setzt CSS-Variablen auf dem Host:
+ *  - --popup-safe-right
+ *  - --popup-safe-top
+ */
+function usePopupSafeInsets(opts: {
+	hostRef: RefObject<HTMLDivElement | null>;
+	rightControlsRef: RefObject<HTMLDivElement | null>;
+	topControlsRef?: RefObject<HTMLDivElement | null>;
+	map?: MapLibreMap | null;
+}): void {
+	const { hostRef, rightControlsRef, topControlsRef, map } = opts;
+
+	useEffect(() => {
+		const host = hostRef.current;
+		if (!host) return;
+
+		const compute = () => {
+			const hostRect = host.getBoundingClientRect();
+
+			const rightRect = rightControlsRef.current?.getBoundingClientRect() ?? null;
+			const safeRight = rightRect ? Math.max(0, hostRect.right - rightRect.left) + 16 : 0;
+			setCssVarPx(host, "--popup-safe-right", safeRight);
+
+			const topRect = topControlsRef?.current?.getBoundingClientRect() ?? null;
+			const safeTop = topRect ? Math.max(0, topRect.bottom - hostRect.top) + 12 : 0;
+			setCssVarPx(host, "--popup-safe-top", safeTop);
+		};
+
+		compute();
+
+		const ro = new ResizeObserver(() => compute());
+		ro.observe(host);
+
+		const rightEl = rightControlsRef.current;
+		if (rightEl) ro.observe(rightEl);
+
+		const topEl = topControlsRef?.current ?? null;
+		if (topEl) ro.observe(topEl);
+
+		window.addEventListener("resize", compute);
+
+		// Map resize (Canvas/Layout)
+		const onMapResize = () => compute();
+		if (map) map.on("resize", onMapResize);
+
+		return () => {
+			window.removeEventListener("resize", compute);
+			ro.disconnect();
+			if (map) map.off("resize", onMapResize);
+		};
+	}, [hostRef, rightControlsRef, topControlsRef, map]);
+}
 
 export function MapContainer() {
 	const containerRef = useRef<HTMLDivElement | null>(null);
+	const hostRef = useRef<HTMLDivElement | null>(null);
 
-	// State & Store
-	const { basemapId, setBasemapId } = useBasemapStore();
-	const [basemapOpacity, setBasemapOpacity] = useState<number>(1);
+	// Control-Refs für Popup-SafeInsets
+	const rightControlsRef = useRef<HTMLDivElement | null>(null);
+	// const topControlsRef = useRef<HTMLDivElement | null>(null);
+
+	// Stores/State
+	const { basemapId, setBasemapId, isHydrated } = useBasemapStore();
 	const dynamicItems = useTocStore((s) => s.dynamicItems);
+	const [basemapOpacity, setBasemapOpacity] = useState<number>(1);
 
-	// Konfiguration
-	const center = useMemo(
-		() => parseCenter(process.env.NEXT_PUBLIC_MAP_CENTER),
-		[],
-	);
-	const zoom = useMemo(
-		() => Number(process.env.NEXT_PUBLIC_MAP_ZOOM) || 11,
-		[],
-	);
+	const onBasemapChange = (next: typeof basemapId) => {
+		setBasemapId(next);
+	};
 
-	const mergedTocItems = useMemo(
-		() => [...MAP_CONFIG.tocItems, ...dynamicItems],
-		[dynamicItems],
-	);
+	// Konfig aus ENV (einmalig)
+	const center = useMemo(() => parseCenter(process.env.NEXT_PUBLIC_MAP_CENTER), []);
+	const zoom = useMemo(() => readZoom(process.env.NEXT_PUBLIC_MAP_ZOOM), []);
 
-	// Map-Instanz (overlays werden nicht mehr benötigt)
+	const tocItems = useMemo(() => {
+		if (dynamicItems.length === 0) return MAP_CONFIG.tocItems;
+		return [...MAP_CONFIG.tocItems, ...dynamicItems];
+	}, [dynamicItems]);
+
+	// Map
 	const { map } = useMapLibre({
 		containerRef,
 		center,
@@ -56,23 +130,38 @@ export function MapContainer() {
 		basemapOpacity,
 	});
 
-	// ✅ Setup OHNE overlays Parameter
+	// Setup/Sync
 	useMapSetup(map);
-
-	useBasemapSync(map, basemapId);
+	useBasemapSync(map, basemapId, { enabled: isHydrated });
 	useWmsFromUrl(map);
-	useTocSync(map, mergedTocItems);
+	useTocSync(map, tocItems);
 
+	// Features
 	const drawing = useDrawing(map);
 	const { popup, close } = useMapPopup(map, {
 		interactiveLayerIds: [...MAP_CONFIG.interactiveLayerIds],
 	});
 
+	// Popup soll Controls nicht überdecken (Desktop)
+	usePopupSafeInsets({
+		hostRef,
+		rightControlsRef,
+		map,
+		// topControlsRef,
+	});
+
+	// optional: falls Hydration später kommt, Opacity initialisieren/normalisieren
+	useEffect(() => {
+		if (!isHydrated) return;
+		setBasemapOpacity((v) => (Number.isFinite(v) ? v : 1));
+	}, [isHydrated]);
+
 	return (
 		<AppShell map={map} drawing={drawing}>
-			<div className="relative h-full w-full overflow-hidden bg-slate-50">
+			<div ref={hostRef} className="relative h-full w-full overflow-hidden bg-slate-50">
 				<div ref={containerRef} className="h-full w-full" />
 
+				{/* Map Controls Layer */}
 				<div className="pointer-events-none absolute inset-0 z-10 p-4">
 					{drawing.mode !== "select" && (
 						<div className="pointer-events-auto absolute left-4 top-20 animate-in fade-in slide-in-from-left-4">
@@ -80,24 +169,20 @@ export function MapContainer() {
 						</div>
 					)}
 
-					<div className="pointer-events-auto absolute bottom-4 right-4 flex flex-col items-end gap-2">
+					<div
+						ref={rightControlsRef}
+						className="pointer-events-auto absolute bottom-4 right-4 flex flex-col items-end gap-2">
 						<BasemapControl
 							value={basemapId}
-							onChange={setBasemapId}
+							onChange={onBasemapChange}
 							opacity={basemapOpacity}
 							onOpacityChange={setBasemapOpacity}
 						/>
 					</div>
 				</div>
 
-				{popup.open && (
-					<PopupOverlay
-						map={map}
-						popup={popup}
-						onClose={close}
-						tocItems={mergedTocItems}
-					/>
-				)}
+				{/* Popup */}
+				{popup.open && <PopupOverlay popup={popup} onClose={close} tocItems={tocItems} />}
 			</div>
 		</AppShell>
 	);

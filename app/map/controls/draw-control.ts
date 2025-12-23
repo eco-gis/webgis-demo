@@ -2,7 +2,6 @@
 import type maplibregl from "maplibre-gl";
 
 export class DrawControl {
-	private _map?: maplibregl.Map;
 	private _container?: HTMLElement;
 
 	constructor(

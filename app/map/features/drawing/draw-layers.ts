@@ -47,11 +47,7 @@ export const DRAW_LAYERS: readonly LayerSpecification[] = [
 		id: "draw-lines",
 		type: "line",
 		source: DRAW_DATA_SOURCE_ID,
-		filter: [
-			"any",
-			["==", ["get", "kind"], "line"],
-			["==", ["get", "kind"], "arrow"],
-		],
+		filter: ["any", ["==", ["get", "kind"], "line"], ["==", ["get", "kind"], "arrow"]],
 		paint: {
 			"line-color": "#16a34a",
 			"line-width": 3,

@@ -18,17 +18,9 @@ export function SortableTocItem(props: {
 	setLabelsVisible: (id: TocItemId, v: boolean) => void;
 	setOpacity: (id: TocItemId, v: number) => void;
 }) {
-	const { item, isOn, labelsOn, op, setVisible, setLabelsVisible, setOpacity } =
-		props;
+	const { item, isOn, labelsOn, op, setVisible, setLabelsVisible, setOpacity } = props;
 
-	const {
-		attributes,
-		listeners,
-		setNodeRef,
-		transform,
-		transition,
-		isDragging,
-	} = useSortable({ id: item.id });
+	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
 	const style: React.CSSProperties = {
 		transform: CSS.Transform.toString(transform),
@@ -45,10 +37,8 @@ export function SortableTocItem(props: {
 			style={style}
 			className={cn(
 				"rounded-xl border border-sidebar-border bg-sidebar p-3 mb-1 shadow-sm transition-shadow",
-				isDragging &&
-					"opacity-60 shadow-xl border-primary/50 ring-2 ring-primary/20",
-			)}
-		>
+				isDragging && "opacity-60 shadow-xl border-primary/50 ring-2 ring-primary/20",
+			)}>
 			<div className="flex items-center gap-3">
 				{/* 1. Vergrößerter Drag-Handle für bessere Touch-Bedienung */}
 				<button
@@ -60,17 +50,14 @@ export function SortableTocItem(props: {
 					)}
 					aria-label="Layer-Reihenfolge ändern"
 					{...attributes}
-					{...listeners}
-				>
+					{...listeners}>
 					<GripVertical className="h-5 w-5" />
 				</button>
 
 				{/* 2. MIN-W-0 ist der Lebensretter für das Layout! */}
 				<div className="min-w-0 flex-1 flex flex-col gap-1">
 					<div className="flex items-center justify-between gap-2">
-						<span className="truncate text-sm font-semibold text-foreground tracking-tight">
-							{item.title}
-						</span>
+						<span className="truncate text-sm font-semibold text-foreground tracking-tight">{item.title}</span>
 						<Switch
 							checked={isOn}
 							onCheckedChange={(v) => setVisible(item.id, v)}
@@ -84,13 +71,10 @@ export function SortableTocItem(props: {
 							type="button"
 							className={cn(
 								"inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider transition-colors",
-								isOn && hasLabels
-									? "text-primary hover:text-primary/80"
-									: "text-muted-foreground/40",
+								isOn && hasLabels ? "text-primary hover:text-primary/80" : "text-muted-foreground/40",
 							)}
 							disabled={!isOn || !hasLabels}
-							onClick={() => setLabelsVisible(item.id, !labelsOn)}
-						>
+							onClick={() => setLabelsVisible(item.id, !labelsOn)}>
 							<Tag className={cn("h-3 w-3", labelsOn && "fill-current")} />
 							{labelsOn ? "Labels an" : "Labels aus"}
 						</button>

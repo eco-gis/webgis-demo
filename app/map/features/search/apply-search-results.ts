@@ -1,5 +1,5 @@
-import type { GeocodingFeature } from "@/app/lib/maptiler/geocoding";
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type { GeocodingFeature } from "@/app/lib/maptiler/geocoding";
 import { SEARCH_MARKER_SOURCE_ID } from "./search-marker";
 
 /**
@@ -15,9 +15,7 @@ export function applySearchResult(map: MapLibreMap, f: GeocodingFeature) {
 		padding: { top: 50, bottom: 50, left: 50, right: 50 },
 	});
 
-	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as
-		| GeoJSONSource
-		| undefined;
+	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as GeoJSONSource | undefined;
 
 	if (source && typeof source.setData === "function") {
 		source.setData({
@@ -37,9 +35,7 @@ export function applySearchResult(map: MapLibreMap, f: GeocodingFeature) {
  * Entfernt den Suchmarker von der Karte
  */
 export function clearSearchMarker(map: MapLibreMap) {
-	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as
-		| GeoJSONSource
-		| undefined;
+	const source = map.getSource(SEARCH_MARKER_SOURCE_ID) as GeoJSONSource | undefined;
 	if (source && typeof source.setData === "function") {
 		source.setData({
 			type: "FeatureCollection",

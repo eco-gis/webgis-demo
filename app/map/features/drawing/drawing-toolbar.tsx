@@ -1,14 +1,5 @@
 "use client";
 
-import { Button } from "@/app/components/ui/button";
-import { Separator } from "@/app/components/ui/separator";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/app/components/ui/tooltip";
-import { cn } from "@/app/lib/utils";
 import {
 	ArrowUpRight,
 	Check,
@@ -24,6 +15,10 @@ import {
 	X,
 } from "lucide-react";
 import { useState } from "react";
+import { Button } from "@/app/components/ui/button";
+import { Separator } from "@/app/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/app/components/ui/tooltip";
+import { cn } from "@/app/lib/utils";
 import type { DrawMode } from "./use-drawing";
 
 interface Drawing {
@@ -84,14 +79,12 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 				className={cn(
 					"pointer-events-auto fixed md:absolute bottom-6 left-1/2 -translate-x-1/2 md:left-4 md:translate-x-0",
 					className,
-				)}
-			>
+				)}>
 				<Button
 					variant="outline"
 					size="icon"
 					className="h-12 w-12 md:h-10 md:w-10 rounded-full bg-background/95 shadow-lg border-primary/20"
-					onClick={() => setIsCollapsed(false)}
-				>
+					onClick={() => setIsCollapsed(false)}>
 					<Pencil className="h-5 w-5 text-primary" />
 				</Button>
 			</div>
@@ -106,8 +99,7 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 					variant="ghost"
 					size="icon"
 					className="h-8 w-8 md:h-6 md:w-9 shrink-0"
-					onClick={() => setIsCollapsed(true)}
-				>
+					onClick={() => setIsCollapsed(true)}>
 					<ChevronLeft className="h-4 w-4 text-muted-foreground md:block hidden" />
 					<X className="h-4 w-4 text-muted-foreground md:hidden block" />
 				</Button>
@@ -119,14 +111,8 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 					onClick={() => drawing.setMode("select")}
 				/>
 
-				<Separator
-					orientation="vertical"
-					className="h-6 md:hidden block bg-border/60"
-				/>
-				<Separator
-					orientation="horizontal"
-					className="w-full hidden md:block bg-border/60"
-				/>
+				<Separator orientation="vertical" className="h-6 md:hidden block bg-border/60" />
+				<Separator orientation="horizontal" className="w-full hidden md:block bg-border/60" />
 
 				{/* ZEICHEN-TOOLS */}
 				<div className="flex flex-row md:flex-col gap-1">
@@ -141,14 +127,8 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 					))}
 				</div>
 
-				<Separator
-					orientation="vertical"
-					className="h-6 md:hidden block bg-border/60"
-				/>
-				<Separator
-					orientation="horizontal"
-					className="w-full hidden md:block bg-border/60"
-				/>
+				<Separator orientation="vertical" className="h-6 md:hidden block bg-border/60" />
+				<Separator orientation="horizontal" className="w-full hidden md:block bg-border/60" />
 
 				{/* MESS-TOOLS */}
 				<div className="flex flex-row md:flex-col gap-1">
@@ -166,17 +146,9 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 				{/* AKTIONEN (Undo, Finish) - Werden bei Sketch eingeblendet */}
 				{drawing.hasSketch && (
 					<>
-						<Separator
-							orientation="vertical"
-							className="h-6 md:hidden block bg-border/60"
-						/>
+						<Separator orientation="vertical" className="h-6 md:hidden block bg-border/60" />
 						<div className="flex flex-row md:flex-col gap-1 animate-in zoom-in-90">
-							<ActionButton
-								icon={Undo2}
-								label="Zurück"
-								className="text-orange-600"
-								onClick={drawing.undoLast}
-							/>
+							<ActionButton icon={Undo2} label="Zurück" className="text-orange-600" onClick={drawing.undoLast} />
 							<ActionButton
 								icon={Check}
 								label="Fertig"
@@ -190,17 +162,13 @@ export function DrawingToolbar({ drawing, className }: DrawingToolbarProps) {
 				{/* DELETE ALL - Nur wenn keine aktive Skizze, aber Features da sind */}
 				{drawing.hasFeatures && !drawing.hasSketch && (
 					<>
-						<Separator
-							orientation="vertical"
-							className="h-6 md:hidden block bg-border/60"
-						/>
+						<Separator orientation="vertical" className="h-6 md:hidden block bg-border/60" />
 						<ActionButton
 							icon={Trash2}
 							label="Löschen"
 							className="text-destructive"
 							onClick={() => {
-								if (window.confirm("Alle Zeichnungen entfernen?"))
-									drawing.clearAll();
+								if (window.confirm("Alle Zeichnungen entfernen?")) drawing.clearAll();
 							}}
 						/>
 					</>
@@ -221,8 +189,7 @@ function ToolButton({ icon: Icon, label, isActive, onClick }: ToolButtonProps) {
 						"h-10 w-10 md:h-9 md:w-9 rounded-xl shrink-0 transition-all",
 						isActive && "shadow-md scale-110 md:scale-100",
 					)}
-					onClick={onClick}
-				>
+					onClick={onClick}>
 					<Icon className="h-5 w-5 md:h-4 md:w-4" />
 				</Button>
 			</TooltipTrigger>
@@ -236,24 +203,15 @@ function ToolButton({ icon: Icon, label, isActive, onClick }: ToolButtonProps) {
 	);
 }
 
-function ActionButton({
-	icon: Icon,
-	label,
-	onClick,
-	className,
-}: ActionButtonProps) {
+function ActionButton({ icon: Icon, label, onClick, className }: ActionButtonProps) {
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>
 				<Button
 					variant="ghost"
 					size="icon"
-					className={cn(
-						"h-10 w-10 md:h-9 md:w-9 rounded-xl shrink-0",
-						className,
-					)}
-					onClick={onClick}
-				>
+					className={cn("h-10 w-10 md:h-9 md:w-9 rounded-xl shrink-0", className)}
+					onClick={onClick}>
 					<Icon className="h-5 w-5 md:h-4 md:w-4" />
 				</Button>
 			</TooltipTrigger>

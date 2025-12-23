@@ -43,8 +43,7 @@ export const metadata: Metadata = {
 	twitter: {
 		card: "summary_large_image",
 		title: "Demo WebGIS – eco|gis",
-		description:
-			"Interaktive WebGIS-Demo von eco|gis. Referenz für moderne, schlanke Kartenanwendungen.",
+		description: "Interaktive WebGIS-Demo von eco|gis. Referenz für moderne, schlanke Kartenanwendungen.",
 	},
 
 	alternates: {
@@ -52,11 +51,7 @@ export const metadata: Metadata = {
 	},
 };
 
-export default function RootLayout({
-	children,
-}: {
-	children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="de" className={inter.variable}>
 			<Analytics />

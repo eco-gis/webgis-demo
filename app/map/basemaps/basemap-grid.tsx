@@ -36,8 +36,7 @@ export function BasemapGrid({
 	onOpacityChange,
 	showOpacity = false,
 }: BasemapGridProps) {
-	const opacityPct =
-		typeof opacity === "number" ? Math.round(clamp01(opacity) * 100) : null;
+	const opacityPct = typeof opacity === "number" ? Math.round(clamp01(opacity) * 100) : null;
 
 	return (
 		<div className={cn("space-y-3", className)}>
@@ -59,8 +58,7 @@ export function BasemapGrid({
 								"focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
 							)}
 							aria-pressed={active}
-							title={b.label}
-						>
+							title={b.label}>
 							<div className="relative aspect-square w-full">
 								{b.thumbnailUrl ? (
 									<Image
@@ -77,9 +75,7 @@ export function BasemapGrid({
 
 								<div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-2">
 									<div className="min-w-0">
-										<div className="truncate text-[12px] font-medium text-white drop-shadow">
-											{b.label}
-										</div>
+										<div className="truncate text-[12px] font-medium text-white drop-shadow">{b.label}</div>
 									</div>
 
 									{active ? (
@@ -98,9 +94,7 @@ export function BasemapGrid({
 				<div className="space-y-2">
 					<div className="flex items-center justify-between">
 						<div className="text-[11px] text-muted-foreground">Deckkraft</div>
-						<div className="text-[11px] tabular-nums text-muted-foreground">
-							{opacityPct}%
-						</div>
+						<div className="text-[11px] tabular-nums text-muted-foreground">{opacityPct}%</div>
 					</div>
 
 					<Slider

@@ -1,0 +1,154 @@
+{
+	"sourceCsv": "saeckelamtshuesli_sept24.csv",
+	"site": "Rändli",
+	"year": 2024,
+	"month": 9,
+	"bucketMinutes": null,
+	"metric": "calls_daily",
+	"presenceValue": 1,
+	"maxGapMinutes": 1,
+	"totalPresenceMinutes": 198,
+	"totalCallEvents": 185,
+	"series": [
+		{
+			"t": "2024-09-01",
+			"presenceMinutes": 9,
+			"callEvents": 8
+		},
+		{
+			"t": "2024-09-02",
+			"presenceMinutes": 14,
+			"callEvents": 12
+		},
+		{
+			"t": "2024-09-03",
+			"presenceMinutes": 10,
+			"callEvents": 9
+		},
+		{
+			"t": "2024-09-04",
+			"presenceMinutes": 11,
+			"callEvents": 10
+		},
+		{
+			"t": "2024-09-05",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2024-09-06",
+			"presenceMinutes": 12,
+			"callEvents": 12
+		},
+		{
+			"t": "2024-09-07",
+			"presenceMinutes": 7,
+			"callEvents": 7
+		},
+		{
+			"t": "2024-09-08",
+			"presenceMinutes": 8,
+			"callEvents": 8
+		},
+		{
+			"t": "2024-09-09",
+			"presenceMinutes": 5,
+			"callEvents": 5
+		},
+		{
+			"t": "2024-09-10",
+			"presenceMinutes": 13,
+			"callEvents": 12
+		},
+		{
+			"t": "2024-09-11",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2024-09-12",
+			"presenceMinutes": 9,
+			"callEvents": 7
+		},
+		{
+			"t": "2024-09-13",
+			"presenceMinutes": 5,
+			"callEvents": 4
+		},
+		{
+			"t": "2024-09-14",
+			"presenceMinutes": 15,
+			"callEvents": 11
+		},
+		{
+			"t": "2024-09-15",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2024-09-16",
+			"presenceMinutes": 6,
+			"callEvents": 6
+		},
+		{
+			"t": "2024-09-17",
+			"presenceMinutes": 6,
+			"callEvents": 6
+		},
+		{
+			"t": "2024-09-20",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2024-09-21",
+			"presenceMinutes": 7,
+			"callEvents": 7
+		},
+		{
+			"t": "2024-09-22",
+			"presenceMinutes": 10,
+			"callEvents": 10
+		},
+		{
+			"t": "2024-09-23",
+			"presenceMinutes": 10,
+			"callEvents": 10
+		},
+		{
+			"t": "2024-09-24",
+			"presenceMinutes": 14,
+			"callEvents": 14
+		},
+		{
+			"t": "2024-09-25",
+			"presenceMinutes": 7,
+			"callEvents": 7
+		},
+		{
+			"t": "2024-09-26",
+			"presenceMinutes": 2,
+			"callEvents": 2
+		},
+		{
+			"t": "2024-09-27",
+			"presenceMinutes": 3,
+			"callEvents": 3
+		},
+		{
+			"t": "2024-09-28",
+			"presenceMinutes": 3,
+			"callEvents": 3
+		},
+		{
+			"t": "2024-09-29",
+			"presenceMinutes": 1,
+			"callEvents": 1
+		},
+		{
+			"t": "2024-09-30",
+			"presenceMinutes": 6,
+			"callEvents": 6
+		}
+	]
+}

@@ -29,19 +29,14 @@ function getKey(): string {
 	return key;
 }
 
-export async function geocode(
-	query: string,
-	opts: GeocodeOptions = {},
-): Promise<GeocodingFeature[]> {
+export async function geocode(query: string, opts: GeocodeOptions = {}): Promise<GeocodingFeature[]> {
 	const q = query.trim();
 	if (!q) return [];
 
 	const key = getKey();
 	const limit = opts.limit ?? 8;
 
-	const url = new URL(
-		`https://api.maptiler.com/geocoding/${encodeURIComponent(q)}.json`,
-	);
+	const url = new URL(`https://api.maptiler.com/geocoding/${encodeURIComponent(q)}.json`);
 	url.searchParams.set("key", key);
 	url.searchParams.set("limit", String(limit));
 	if (opts.language) url.searchParams.set("language", opts.language);
@@ -50,9 +45,7 @@ export async function geocode(
 	const res = await fetch(url.toString(), { signal: opts.signal });
 	if (!res.ok) {
 		const text = await res.text().catch(() => "");
-		throw new Error(
-			`Geocoding failed (${res.status}): ${text || res.statusText}`,
-		);
+		throw new Error(`Geocoding failed (${res.status}): ${text || res.statusText}`);
 	}
 
 	const data = (await res.json()) as GeocodingResponse;

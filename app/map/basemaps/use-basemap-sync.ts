@@ -1,87 +1,84 @@
+// app/map/basemaps/use-basemap-sync.ts
 "use client";
 
-import {
-	type MapTilerStyleId,
-	mapTilerStyleUrl,
-} from "@/app/lib/maptiler/styles";
-import { reorderAppLayers } from "@/app/map/core/layer-order";
-import type {
-	LayerSpecification,
-	Map as MaplibreMap,
-	SourceSpecification,
-} from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 import { useEffect, useRef } from "react";
+import { type MapTilerStyleId, mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
 import type { BasemapId } from "./basemap-config";
 import { getBasemapById } from "./basemap-config";
-
-/**
- * Lädt die Overlays aus der style.json und integriert sie in die Map.
- */
-async function restoreOverlays(map: MaplibreMap) {
-	try {
-		const res = await fetch("/data/style.json", { cache: "no-store" });
-		if (!res.ok) throw new Error(`Style fetch failed: ${res.status}`);
-
-		const { sources, layers } = await res.json();
-
-		// 1. Quellen hinzufügen
-		if (sources) {
-			Object.entries(sources).forEach(([id, spec]) => {
-				if (!map.getSource(id)) {
-					map.addSource(id, spec as SourceSpecification);
-				}
-			});
-		}
-
-		// 2. Layer hinzufügen
-		if (layers) {
-			layers.forEach((layer: LayerSpecification) => {
-				if (!map.getLayer(layer.id)) {
-					map.addLayer(layer);
-				}
-			});
-		}
-
-		// 3. Layer-Ordnung sicherstellen
-		reorderAppLayers(map);
-		map.fire("basemap.ready");
-	} catch (err) {
-		console.error("❌ Fehler beim Wiederherstellen der Overlays:", err);
-	}
-}
 
 export function useBasemapSync(
 	map: MaplibreMap | null,
 	basemapId: BasemapId,
+	opts?: {
+		enabled?: boolean;
+		initialStyleId?: MapTilerStyleId;
+	},
 ): void {
-	const activeRequestId = useRef(0);
+	const enabled = opts?.enabled ?? true;
+	const initialStyleId = opts?.initialStyleId ?? "ch-swisstopo-lbm";
+
+	const lastStyleUrlRef = useRef<string>(mapTilerStyleUrl(initialStyleId));
+	const reqIdRef = useRef(0);
 
 	useEffect(() => {
-		if (!map) return;
+		const m = map;
+		if (!m || !enabled) return;
 
-		// Eindeutige ID für diesen Effekt-Lauf (verhindert Race Conditions)
-		const currentId = ++activeRequestId.current;
 		const def = getBasemapById(basemapId);
 		const nextStyleUrl = mapTilerStyleUrl(def.styleId as MapTilerStyleId);
 
-		console.log(`🗺️ Wechsel zu Basemap: ${def.label}`);
+		if (lastStyleUrlRef.current === nextStyleUrl) return;
 
-		// Callback für das Laden des neuen Styles
-		const handleStyleLoad = () => {
-			// Nur ausführen, wenn dies noch der aktuellste Request ist
-			if (currentId === activeRequestId.current) {
-				restoreOverlays(map);
+		const currentReqId = ++reqIdRef.current;
+		let finished = false;
+
+		const cleanup = () => {
+			m.off("style.load", onStyleLoad);
+			m.off("styledata", onStyleData);
+			m.off("idle", onIdle);
+			m.off("error", onError);
+		};
+
+		const finalize = () => {
+			if (finished) return;
+			finished = true;
+
+			// ignore stale requests
+			if (currentReqId !== reqIdRef.current) {
+				cleanup();
+				return;
 			}
+
+			// notify use-maplibre.ts to re-apply overlays (+ reorder there)
+			m.fire("basemap.ready");
+			cleanup();
 		};
 
-		// Event-Listener registrieren (styledata ist zuverlässiger als idle)
-		map.once("styledata", handleStyleLoad);
-
-		// Den eigentlichen Style-Wechsel triggern
-		map.setStyle(nextStyleUrl);
-
-		return () => {
-			map.off("styledata", handleStyleLoad);
+		const onStyleLoad = () => finalize();
+		const onStyleData = () => {
+			if (!m.isStyleLoaded()) return;
+			finalize();
 		};
-	}, [map, basemapId]);
+		const onIdle = () => {
+			if (!m.isStyleLoaded()) return;
+			finalize();
+		};
+		const onError = () => {
+			// no-op (avoid logs in final version)
+		};
+
+		// Register handlers BEFORE setStyle
+		m.on("style.load", onStyleLoad);
+		m.on("styledata", onStyleData);
+		m.on("idle", onIdle);
+		m.on("error", onError);
+
+		// Update ref immediately so fast switches work correctly
+		lastStyleUrlRef.current = nextStyleUrl;
+
+		m.setStyle(nextStyleUrl);
+
+		return cleanup;
+	}, [map, basemapId, enabled]);
 }

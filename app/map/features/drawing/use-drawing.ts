@@ -4,12 +4,7 @@ import * as turf from "@turf/turf";
 import type maplibregl from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ensureArrowIcon } from "./draw-icons";
-import {
-	DRAW_DATA_SOURCE_ID,
-	DRAW_LAYERS,
-	DRAW_SKETCH_SOURCE_ID,
-	DRAW_SOURCES,
-} from "./draw-layers";
+import { DRAW_DATA_SOURCE_ID, DRAW_LAYERS, DRAW_SKETCH_SOURCE_ID, DRAW_SOURCES } from "./draw-layers";
 
 /** --- Types --- */
 
@@ -33,14 +28,10 @@ function newId(): string {
 	return crypto.randomUUID();
 }
 
-export function formatMeasurement(
-	mode: string,
-	feature: GeoJSON.Feature,
-): string {
+export function formatMeasurement(mode: string, feature: GeoJSON.Feature): string {
 	if (!feature.geometry) return "";
 
-	const isPolygon =
-		mode.includes("polygon") || feature.properties?.kind === "polygon";
+	const isPolygon = mode.includes("polygon") || feature.properties?.kind === "polygon";
 
 	if (isPolygon) {
 		const area = turf.area(feature);
@@ -51,10 +42,9 @@ export function formatMeasurement(
 				})} km²`;
 	}
 
-	const lengthM = turf.length(
-		feature as GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>,
-		{ units: "meters" },
-	);
+	const lengthM = turf.length(feature as GeoJSON.Feature<GeoJSON.LineString | GeoJSON.MultiLineString>, {
+		units: "meters",
+	});
 
 	return lengthM < 1000
 		? `${Math.round(lengthM).toLocaleString("de-CH")} m`
@@ -79,8 +69,7 @@ function buildSketchGeoJson(params: {
 	const isArrow = mode.endsWith("arrow");
 
 	const displayLineCoords = hover ? [...coords, hover] : [...coords];
-	const lineGeometryCoords =
-		isPolygon && hover ? [...coords, hover, coords[0]] : displayLineCoords;
+	const lineGeometryCoords = isPolygon && hover ? [...coords, hover, coords[0]] : displayLineCoords;
 
 	features.push({
 		type: "Feature",
@@ -157,12 +146,8 @@ export function useDrawing(map: maplibregl.Map | null) {
 	const updateSources = useCallback(() => {
 		if (!map || !map.getStyle()) return;
 
-		const srcData = map.getSource(DRAW_DATA_SOURCE_ID) as
-			| maplibregl.GeoJSONSource
-			| undefined;
-		const srcSketch = map.getSource(DRAW_SKETCH_SOURCE_ID) as
-			| maplibregl.GeoJSONSource
-			| undefined;
+		const srcData = map.getSource(DRAW_DATA_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
+		const srcSketch = map.getSource(DRAW_SKETCH_SOURCE_ID) as maplibregl.GeoJSONSource | undefined;
 
 		if (srcData) {
 			srcData.setData({ type: "FeatureCollection", features });
@@ -298,12 +283,7 @@ export function useDrawing(map: maplibregl.Map | null) {
 		};
 
 		const onMouseMove = (e: maplibregl.MapMouseEvent) => {
-			if (
-				mode === "select" ||
-				mode === "draw-point" ||
-				sketchRef.current.length === 0
-			)
-				return;
+			if (mode === "select" || mode === "draw-point" || sketchRef.current.length === 0) return;
 			hoverRef.current = [e.lngLat.lng, e.lngLat.lat];
 			setSketchTick((v) => v + 1);
 			updateSources(); // Manuelles Update für die Sketch-Source
@@ -330,20 +310,12 @@ export function useDrawing(map: maplibregl.Map | null) {
 	/** --- Selectors --- */
 
 	const allFeatures = useMemo(() => {
-		return [...features].sort(
-			(a, b) => (b.properties?.timestamp ?? 0) - (a.properties?.timestamp ?? 0),
-		);
+		return [...features].sort((a, b) => (b.properties?.timestamp ?? 0) - (a.properties?.timestamp ?? 0));
 	}, [features]);
 
-	const measurements = useMemo(
-		() => allFeatures.filter((f) => f.properties?.usage === "measure"),
-		[allFeatures],
-	);
+	const measurements = useMemo(() => allFeatures.filter((f) => f.properties?.usage === "measure"), [allFeatures]);
 
-	const sketches = useMemo(
-		() => allFeatures.filter((f) => f.properties?.usage === "draw"),
-		[allFeatures],
-	);
+	const sketches = useMemo(() => allFeatures.filter((f) => f.properties?.usage === "draw"), [allFeatures]);
 
 	const currentSketch = useMemo(() => {
 		// sketchTick wird hier aktiv genutzt, um Biome zufriedenzustellen
