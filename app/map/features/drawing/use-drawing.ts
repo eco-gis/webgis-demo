@@ -214,7 +214,7 @@ export function useDrawing(map: maplibregl.Map | null) {
 	}, [map, updateSources]);
 
 	/**
-	 * Skizze abschließen
+	 * Skizze abschliessen
 	 */
 	const commit = useCallback(() => {
 		const coords = sketchRef.current;

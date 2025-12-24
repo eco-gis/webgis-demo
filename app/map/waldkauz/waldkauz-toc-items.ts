@@ -5,7 +5,7 @@ import { WALDKAUZ_LAYER_IDS } from "@/app/map/waldkauz/waldkauz-overlay.local";
 export const DEMO_TOC_ITEMS: readonly TocItemConfig[] = [
 	{
 		id: "waldkauz-points",
-		title: "Waldkauz · Standorte",
+		title: "Waldkauz · Standorte der Nachweise",
 		mapLayerIds: [WALDKAUZ_LAYER_IDS.points],
 		labelLayerIds: [],
 		defaultVisible: true,
@@ -14,7 +14,7 @@ export const DEMO_TOC_ITEMS: readonly TocItemConfig[] = [
 	},
 	{
 		id: "waldkauz-buffers",
-		title: "Waldkauz · Pufferzonen",
+		title: "Waldkauz · Aktionsradien",
 		mapLayerIds: [
 			WALDKAUZ_LAYER_IDS.buffer2000Fill,
 			WALDKAUZ_LAYER_IDS.buffer2000Line,

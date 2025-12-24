@@ -40,7 +40,7 @@ export function SortableTocItem(props: {
 				isDragging && "opacity-60 shadow-xl border-primary/50 ring-2 ring-primary/20",
 			)}>
 			<div className="flex items-center gap-3">
-				{/* 1. Vergrößerter Drag-Handle für bessere Touch-Bedienung */}
+				{/* 1. Vergrösserter Drag-Handle für bessere Touch-Bedienung */}
 				<button
 					type="button"
 					className={cn(
