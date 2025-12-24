@@ -14,7 +14,7 @@ export function AppHeader({ map, className }: { map: MaplibreMap | null; classNa
 			)}>
 			{/* Linker Bereich: Trigger und Titel */}
 			<div className="flex min-w-0 items-center gap-3">
-				<SidebarTrigger className="-ml-1 flex-shrink-0" />
+				<SidebarTrigger className="-ml-1 shrink-0" />
 
 				<div className="h-4 w-px bg-border/60 mx-1 hidden xs:block" />
 
