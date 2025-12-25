@@ -1,8 +1,5 @@
 "use client";
 
-import { Check, Globe, Info, Layers, List, Pencil, Ruler, Shapes, Trash2, Undo2, Wrench, X } from "lucide-react";
-import type { Map as MaplibreMap } from "maplibre-gl";
-import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/app/components/ui/button";
 import { ScrollArea } from "@/app/components/ui/scroll-area";
 import { Sidebar, SidebarContent, SidebarHeader, useSidebar } from "@/app/components/ui/sidebar";
@@ -12,6 +9,9 @@ import { formatMeasurement, type useDrawing } from "@/app/map/features/drawing/u
 import { LegendPanel } from "@/app/map/features/legend/legend-panel";
 import { TocPanel } from "@/app/map/features/toc/toc-panel";
 import { SwisstopoWmsPanel } from "@/app/map/features/wms/swisstopo-wms-panel";
+import { Check, Globe, Info, Layers, List, Pencil, Ruler, Shapes, Trash2, Undo2, Wrench, X } from "lucide-react";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import { useEffect, useMemo, useState } from "react";
 
 interface ToolButtonProps {
 	active: boolean;

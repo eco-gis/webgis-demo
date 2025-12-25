@@ -1,12 +1,11 @@
 // app/map/waldkauz/waldkauz-toc-items.ts
 import type { TocItemConfig } from "@/app/map/features/toc/toc-types";
-import { WALDKAUZ_LAYER_IDS } from "@/app/map/waldkauz/waldkauz-overlay.local";
 
 export const DEMO_TOC_ITEMS: readonly TocItemConfig[] = [
 	{
 		id: "waldkauz-points",
 		title: "Waldkauz · Standorte der Nachweise",
-		mapLayerIds: [WALDKAUZ_LAYER_IDS.points],
+		mapLayerIds: ["waldkauz-points"],
 		labelLayerIds: [],
 		defaultVisible: true,
 		defaultLabelsVisible: false,
@@ -15,14 +14,7 @@ export const DEMO_TOC_ITEMS: readonly TocItemConfig[] = [
 	{
 		id: "waldkauz-buffers",
 		title: "Waldkauz · Aktionsradien",
-		mapLayerIds: [
-			WALDKAUZ_LAYER_IDS.buffer2000Fill,
-			WALDKAUZ_LAYER_IDS.buffer2000Line,
-			WALDKAUZ_LAYER_IDS.buffer1000Fill,
-			WALDKAUZ_LAYER_IDS.buffer1000Line,
-			WALDKAUZ_LAYER_IDS.buffer500Fill,
-			WALDKAUZ_LAYER_IDS.buffer500Line,
-		],
+		mapLayerIds: ["waldkauz-buffer-2000", "waldkauz-buffer-1000", "waldkauz-buffer-500"],
 		labelLayerIds: [],
 		defaultVisible: true,
 		defaultLabelsVisible: false,

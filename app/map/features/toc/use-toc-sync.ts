@@ -1,4 +1,4 @@
-// app/map/toc/use-toc-sync.ts
+// app/map/features/toc/use-toc-sync.ts
 "use client";
 
 import type { Map as MapLibreMap, StyleLayer } from "maplibre-gl";
@@ -7,7 +7,7 @@ import { useTocStore } from "./toc-store";
 import type { TocItemConfig, TocItemId } from "./toc-types";
 
 // ============================================================================
-// Helper Functions
+// Helpers
 // ============================================================================
 
 function opacityPaintPropByType(type: StyleLayer["type"]): string | null {
@@ -47,6 +47,12 @@ function moveToTopIfExists(map: MapLibreMap, layerId: string): void {
 	if (map.getLayer(layerId)) map.moveLayer(layerId);
 }
 
+function isStyleReady(map: MapLibreMap): boolean {
+	// keep it boolean-only (TS2322 fix)
+	// getStyle() ist je nach maplibre-gl typings nicht immer sauber typisiert, daher nicht verwenden.
+	return !!map.isStyleLoaded();
+}
+
 // ============================================================================
 // Hook
 // ============================================================================
@@ -63,7 +69,7 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 		if (items.length) initFromItems(items);
 	}, [items, initFromItems]);
 
-	// ---------- Compute Ordered Items ----------
+	// ---------- Ordered Items ----------
 	const orderedItems = useMemo(() => {
 		const byId = new Map<TocItemId, TocItemConfig>();
 		for (const it of items) byId.set(it.id, it);
@@ -86,7 +92,7 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 		return out;
 	}, [items, order]);
 
-	// Keep latest store snapshots without re-registering map listeners constantly
+	// ---------- Refs (latest snapshots) ----------
 	const orderedItemsRef = useRef(orderedItems);
 	const visibleRef = useRef(visible);
 	const labelsVisibleRef = useRef(labelsVisible);
@@ -95,22 +101,29 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 	useEffect(() => {
 		orderedItemsRef.current = orderedItems;
 	}, [orderedItems]);
+
 	useEffect(() => {
 		visibleRef.current = visible;
 	}, [visible]);
+
 	useEffect(() => {
 		labelsVisibleRef.current = labelsVisible;
 	}, [labelsVisible]);
+
 	useEffect(() => {
 		opacityRef.current = opacity;
 	}, [opacity]);
 
-	// ---------- Z-Order Management ----------
+
+	// ========================================================================
+	// Z-Order Management
+	// ========================================================================
+
 	const applyZOrder = useCallback(() => {
 		const m = map;
-		if (!m || !m.isStyleLoaded()) return;
+		if (!m || !isStyleReady(m)) return;
 
-		// Move in reverse order so first items end up below later ones
+		// reverse move so first items end up below later ones
 		const itemsToMove = [...orderedItemsRef.current].reverse();
 
 		for (const item of itemsToMove) {
@@ -121,7 +134,7 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 			}
 		}
 
-		// Keep UI layers on top
+		// keep UI layers on top
 		moveToTopIfExists(m, "search-marker-layer");
 
 		for (const l of m.getStyle()?.layers ?? []) {
@@ -137,22 +150,41 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 		if (!m) return;
 
 		m.on("style.load", applyZOrder);
-		m.on("app.style.ready", applyZOrder);
+
+		// 🔧 wichtig für dynamische addLayer/addSource
+		m.on("styledata", applyZOrder);
+
+		// 🔧 dein Setup feuert app.layers.ready, nicht app.style.ready
+		m.on("app.layers.ready", applyZOrder);
+
+		// optional
 		m.on("idle", applyZOrder);
 
 		applyZOrder();
 
 		return () => {
 			m.off("style.load", applyZOrder);
-			m.off("app.style.ready", applyZOrder);
+			m.off("styledata", applyZOrder);
+			m.off("app.layers.ready", applyZOrder);
 			m.off("idle", applyZOrder);
 		};
 	}, [map, applyZOrder]);
 
-	// ---------- Visibility & Opacity Sync ----------
+	// ✅ Trigger: Reorder aus UI sofort anwenden
+	// biome-ignore lint/correctness/useExhaustiveDependencies: orderedItems ist hier absichtlich Trigger (Ref-Pattern)
+	useEffect(() => {
+		const m = map;
+		if (!m || !isStyleReady(m)) return;
+		applyZOrder();
+	}, [map, orderedItems, applyZOrder]);
+
+	// ========================================================================
+	// Visibility & Opacity Sync
+	// ========================================================================
+
 	const syncProperties = useCallback(() => {
 		const m = map;
-		if (!m || !m.isStyleLoaded()) return;
+		if (!m || !isStyleReady(m)) return;
 
 		const ordered = orderedItemsRef.current;
 		const v = visibleRef.current;
@@ -180,7 +212,6 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 				m.setLayoutProperty(id, "visibility", shouldBeVisible ? "visible" : "none");
 
 				if (layer.type === "symbol") {
-					// text/icon may not exist on all symbol layers, but setPaintProperty is fine
 					m.setPaintProperty(id, "text-opacity", op);
 					m.setPaintProperty(id, "icon-opacity", op);
 				} else {
@@ -195,22 +226,25 @@ export function useTocSync(map: MapLibreMap | null, items: readonly TocItemConfi
 		const m = map;
 		if (!m) return;
 
-		// Re-sync whenever style changes or overlays are restored
 		m.on("style.load", syncProperties);
-		m.on("app.style.ready", syncProperties);
+		m.on("styledata", syncProperties);
+		m.on("app.layers.ready", syncProperties);
 
-		// Initial sync
 		syncProperties();
 
 		return () => {
 			m.off("style.load", syncProperties);
-			m.off("app.style.ready", syncProperties);
+			m.off("styledata", syncProperties);
+			m.off("app.layers.ready", syncProperties);
 		};
 	}, [map, syncProperties]);
 
-	// Also re-sync immediately when store state changes (no listener rebinds)
+	// ✅ Das ist der entscheidende Trigger für Switch/Slider:
+	// visible/labelsVisible/opacity/order lösen Re-Sync aus, obwohl syncProperties via Refs liest.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Dependencies sind hier absichtlich Trigger (Ref-Pattern)
 	useEffect(() => {
-		if (!map) return;
+		const m = map;
+		if (!m || !isStyleReady(m)) return;
 		syncProperties();
-	}, [map, syncProperties]);
+	}, [map, orderedItems, visible, labelsVisible, opacity, syncProperties]);
 }
