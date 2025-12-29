@@ -1,5 +1,7 @@
 "use client";
 
+import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
+import { reorderAppLayers } from "@/app/map/core/layer-order";
 import maplibregl, {
 	type LayerSpecification,
 	type LngLatLike,
@@ -8,8 +10,6 @@ import maplibregl, {
 } from "maplibre-gl";
 import * as pmtiles from "pmtiles";
 import { type MutableRefObject, type RefObject, useEffect, useRef, useState } from "react";
-import { mapTilerStyleUrl } from "@/app/lib/maptiler/styles";
-import { reorderAppLayers } from "@/app/map/core/layer-order";
 
 // ============================================================================
 // Types
@@ -20,7 +20,6 @@ type UseMapLibreOptions = {
 	center: LngLatLike;
 	zoom: number;
 	onLoad?: (map: MaplibreMap) => void;
-	/** 0..1 - applies opacity to basemap layers only */
 	basemapOpacity?: number;
 };
 

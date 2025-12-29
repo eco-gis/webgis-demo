@@ -2,24 +2,44 @@
 "use client";
 
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { type RefObject, useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
 import { AppShell } from "@/app/components/shell/app-shell";
+
 import { BasemapControl } from "@/app/map/basemaps/basemap-control";
 import { useBasemapStore } from "@/app/map/basemaps/basemap-store";
 import { useBasemapSync } from "@/app/map/basemaps/use-basemap-sync";
+
 import { MAP_CONFIG } from "@/app/map/config/map-config";
+import { readViewFromUrl, type UrlView } from "@/app/map/core/url-view";
 import { useMapSetup } from "@/app/map/core/use-map-setup";
 import { useMapLibre } from "@/app/map/core/use-maplibre";
+import { useUrlViewSync } from "@/app/map/core/use-url-view-sync";
+
+import { CoordsMenu } from "@/app/map/features/coords/coords-menu";
+import { useRightClickCoordinates } from "@/app/map/features/coords/use-right-click-coordinates";
+
 import { DrawingToolbar } from "@/app/map/features/drawing/drawing-toolbar";
 import { useDrawing } from "@/app/map/features/drawing/use-drawing";
+
 import { PopupOverlay } from "@/app/map/features/popup/popup-overlay";
 import { useMapPopup } from "@/app/map/features/popup/use-map-popup";
+
 import { useTocStore } from "@/app/map/features/toc/toc-store";
 import { useTocSync } from "@/app/map/features/toc/use-toc-sync";
+
 import { useWmsFromUrl } from "@/app/map/features/wms/use-wms-from-url";
 
-const DEFAULT_CENTER: [number, number] = [8.55, 47.37];
+// ============================================================================
+// Defaults
+// ============================================================================
+
+const DEFAULT_CENTER: [number, number] = [8.64, 47.695];
 const DEFAULT_ZOOM = 11;
+
+// ============================================================================
+// Env parsing helpers (pure)
+// ============================================================================
 
 function parseCenter(raw?: string): [number, number] {
 	if (!raw) return DEFAULT_CENTER;
@@ -32,7 +52,7 @@ function parseCenter(raw?: string): [number, number] {
 	return parts.length === 2 ? [parts[0], parts[1]] : DEFAULT_CENTER;
 }
 
-function readZoom(raw?: string): number {
+function parseZoom(raw?: string): number {
 	const z = Number(raw);
 	return Number.isFinite(z) ? z : DEFAULT_ZOOM;
 }
@@ -40,6 +60,10 @@ function readZoom(raw?: string): number {
 function setCssVarPx(host: HTMLElement, name: string, px: number): void {
 	host.style.setProperty(name, `${Math.max(0, Math.round(px))}px`);
 }
+
+// ============================================================================
+// Popup safe insets
+// ============================================================================
 
 /**
  * Reserviert "No-fly zones" für das Popup, damit es Controls nicht überdeckt.
@@ -73,7 +97,7 @@ function usePopupSafeInsets(opts: {
 
 		compute();
 
-		const ro = new ResizeObserver(() => compute());
+		const ro = new ResizeObserver(compute);
 		ro.observe(host);
 
 		const rightEl = rightControlsRef.current;
@@ -84,7 +108,6 @@ function usePopupSafeInsets(opts: {
 
 		window.addEventListener("resize", compute);
 
-		// Map resize (Canvas/Layout)
 		const onMapResize = () => compute();
 		if (map) map.on("resize", onMapResize);
 
@@ -95,6 +118,10 @@ function usePopupSafeInsets(opts: {
 		};
 	}, [hostRef, rightControlsRef, topControlsRef, map]);
 }
+
+// ============================================================================
+// Component
+// ============================================================================
 
 export function MapContainer() {
 	const containerRef = useRef<HTMLDivElement | null>(null);
@@ -107,26 +134,46 @@ export function MapContainer() {
 	// Stores/State
 	const { basemapId, setBasemapId, isHydrated } = useBasemapStore();
 	const dynamicItems = useTocStore((s) => s.dynamicItems);
+
 	const [basemapOpacity, setBasemapOpacity] = useState<number>(1);
 
-	const onBasemapChange = (next: typeof basemapId) => {
-		setBasemapId(next);
-	};
+	// URL view (client-only, SSR-safe)
+	const [urlView, setUrlView] = useState<UrlView | null>(null);
+	useEffect(() => {
+		setUrlView(readViewFromUrl(window.location.search));
+	}, []);
 
-	// Konfig aus ENV (einmalig)
-	const center = useMemo(() => parseCenter(process.env.NEXT_PUBLIC_MAP_CENTER), []);
-	const zoom = useMemo(() => readZoom(process.env.NEXT_PUBLIC_MAP_ZOOM), []);
+	// Env defaults (stable)
+	const envCenter = useMemo(() => parseCenter(process.env.NEXT_PUBLIC_MAP_CENTER), []);
+	const envZoom = useMemo(() => parseZoom(process.env.NEXT_PUBLIC_MAP_ZOOM), []);
+
+	// Initial view for map creation (URL overrides env)
+	const initialCenter = useMemo<[number, number]>(() => {
+		if (!urlView) return envCenter;
+		return [urlView.lon, urlView.lat];
+	}, [envCenter, urlView]);
+
+	const initialZoom = useMemo<number>(() => {
+		if (!urlView) return envZoom;
+		return urlView.zoom;
+	}, [envZoom, urlView]);
 
 	const tocItems = useMemo(() => {
-		if (dynamicItems.length === 0) return MAP_CONFIG.tocItems;
-		return [...MAP_CONFIG.tocItems, ...dynamicItems];
+		return dynamicItems.length === 0 ? MAP_CONFIG.tocItems : [...MAP_CONFIG.tocItems, ...dynamicItems];
 	}, [dynamicItems]);
+
+	const onBasemapChange = useCallback(
+		(next: typeof basemapId) => {
+			setBasemapId(next);
+		},
+		[setBasemapId],
+	);
 
 	// Map
 	const { map } = useMapLibre({
 		containerRef,
-		center,
-		zoom,
+		center: initialCenter,
+		zoom: initialZoom,
 		basemapOpacity,
 	});
 
@@ -136,7 +183,11 @@ export function MapContainer() {
 	useWmsFromUrl(map);
 	useTocSync(map, tocItems);
 
+	// URL sync: initial apply is already handled by initialCenter/initialZoom
+	useUrlViewSync(map, { applyOnLoad: false, updateUrl: true, includeOrientation: true });
+
 	// Features
+	const coords = useRightClickCoordinates(map);
 	const drawing = useDrawing(map);
 	const { popup, close } = useMapPopup(map, {
 		interactiveLayerIds: [...MAP_CONFIG.interactiveLayerIds],
@@ -150,7 +201,7 @@ export function MapContainer() {
 		// topControlsRef,
 	});
 
-	// optional: falls Hydration später kommt, Opacity initialisieren/normalisieren
+	// Basemap opacity normalization after hydration
 	useEffect(() => {
 		if (!isHydrated) return;
 		setBasemapOpacity((v) => (Number.isFinite(v) ? v : 1));
@@ -180,6 +231,9 @@ export function MapContainer() {
 						/>
 					</div>
 				</div>
+
+				{/* Right click coordinate menu */}
+				<CoordsMenu state={coords.state} onClose={coords.close} />
 
 				{/* Popup */}
 				{popup.open && <PopupOverlay popup={popup} onClose={close} tocItems={tocItems} />}
