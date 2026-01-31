@@ -11,7 +11,7 @@
 		"biome:fix": "biome check --write .",
 		"biome:format": "biome format --write .",
 		"biome:lint": "biome lint .",
-		"deploy": "ssh ubuntu@83.228.192.16 'cd /home/ubuntu/projects/demo-webgis && bash deploy.sh'"
+		"deploy": "ssh ubuntu@83.228.192.16 'cd /home/ubuntu/projects/webgis-demo && bash deploy.sh'"
 	},
 	"dependencies": {
 		"@dnd-kit/core": "^6.3.1",
