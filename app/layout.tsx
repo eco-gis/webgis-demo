@@ -4,6 +4,8 @@ import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
+import { APP_CONFIG } from "@/app/config/app-config";
+import { Providers } from "@/app/providers";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./globals.css";
 
@@ -15,15 +17,14 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-	metadataBase: new URL("https://demo-webgis.eco-gis.ch"),
+	metadataBase: new URL(APP_CONFIG.baseUrl),
 
 	title: {
-		default: "Demo WebGIS – eco|gis",
-		template: "%s – Demo WebGIS | eco|gis",
+		default: APP_CONFIG.title,
+		template: `%s – ${APP_CONFIG.title}`,
 	},
 
-	description:
-		"Interaktive WebGIS-Demo von eco|gis. Moderne Kartenanwendung mit Layern, Legende und klarer UI – als Referenz für Prototypen und Pilotprojekte.",
+	description: APP_CONFIG.description,
 
 	robots: {
 		index: true,
@@ -32,22 +33,21 @@ export const metadata: Metadata = {
 
 	openGraph: {
 		type: "website",
-		locale: "de_CH",
-		url: "https://demo-webgis.eco-gis.ch",
-		siteName: "eco|gis – Demo WebGIS",
-		title: "Demo WebGIS – eco|gis",
-		description:
-			"Moderne WebGIS-Demo von eco|gis: interaktive Karten, saubere UI, ideal für Pilotierungen und Fachanwendungen.",
+		locale: APP_CONFIG.locale,
+		url: APP_CONFIG.baseUrl,
+		siteName: APP_CONFIG.title,
+		title: APP_CONFIG.ogTitle,
+		description: APP_CONFIG.ogDescription,
 	},
 
 	twitter: {
 		card: "summary_large_image",
-		title: "Demo WebGIS – eco|gis",
-		description: "Interaktive WebGIS-Demo von eco|gis. Referenz für moderne, schlanke Kartenanwendungen.",
+		title: APP_CONFIG.twitterTitle,
+		description: APP_CONFIG.twitterDescription,
 	},
 
 	alternates: {
-		canonical: "https://demo-webgis.eco-gis.ch",
+		canonical: APP_CONFIG.baseUrl,
 	},
 };
 
@@ -55,7 +55,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 	return (
 		<html lang="de" className={inter.variable}>
 			<Analytics />
-			<body className="font-sans antialiased">{children}</body>
+			<body className="font-sans antialiased">
+				<Providers>{children}</Providers>
+			</body>
 		</html>
 	);
 }

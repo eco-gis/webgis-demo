@@ -1,6 +1,7 @@
 "use client";
 
 import { SidebarTrigger } from "@/app/components/ui/sidebar";
+import { APP_CONFIG } from "@/app/config/app-config";
 import { cn } from "@/app/lib/utils";
 import { SearchHeader } from "@/app/map/features/search/search-header";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -20,9 +21,13 @@ export function AppHeader({ map, className }: { map: MaplibreMap | null; classNa
 
 				<div className="flex flex-col gap-0 select-none overflow-hidden">
 					<span className="text-xs font-bold leading-none tracking-tight text-foreground/90 uppercase truncate">
-						Akustisches Monitoring Waldkauz
+						{APP_CONFIG.title}
 					</span>
-					<span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">Schaffhausen</span>
+					{APP_CONFIG.subtitle && (
+						<span className="text-[10px] text-muted-foreground font-medium whitespace-nowrap">
+							{APP_CONFIG.subtitle}
+						</span>
+					)}
 				</div>
 			</div>
 

@@ -4,19 +4,19 @@
 	"sources": {
 		"waldkauz_points": {
 			"type": "geojson",
-			"data": "/data/waldkauz_location.geojson"
+			"data": "./data/plugins/waldkauz/waldkauz_location.geojson"
 		},
 		"waldkauz_buffer_500": {
 			"type": "geojson",
-			"data": "/data/buffer_500.geojson"
+			"data": "./data/plugins/waldkauz/buffer_500.geojson"
 		},
 		"waldkauz_buffer_1000": {
 			"type": "geojson",
-			"data": "/data/buffer_1000.geojson"
+			"data": "./data/plugins/waldkauz/buffer_1000.geojson"
 		},
 		"waldkauz_buffer_2000": {
 			"type": "geojson",
-			"data": "/data/buffer_2000.geojson"
+			"data": "./data/plugins/waldkauz/buffer_2000.geojson"
 		}
 	},
 	"layers": [

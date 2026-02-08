@@ -222,7 +222,7 @@ export function MapContainer() {
 
 					<div
 						ref={rightControlsRef}
-						className="pointer-events-auto absolute bottom-4 right-4 flex flex-col items-end gap-2">
+						className="pointer-events-auto absolute bottom-12 right-4 flex flex-col items-end gap-2">
 						<BasemapControl
 							value={basemapId}
 							onChange={onBasemapChange}

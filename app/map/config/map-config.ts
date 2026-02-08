@@ -1,11 +1,19 @@
-// app/map/map-config.ts
+// app/map/config/map-config.ts
 
-import { DEMO_INTERACTIVE_LAYER_IDS } from "@/app/map/waldkauz/waldkauz-interactive-layer-ids";
-import { DEMO_OVERLAYS } from "@/app/map/waldkauz/waldkauz-overlays";
-import { DEMO_TOC_ITEMS } from "@/app/map/waldkauz/waldkauz-toc-items";
+/**
+ * Zentrale Map-Konfiguration
+ * Lädt dynamisch alle registrierten Plugins
+ */
+
+import "@/app/map/plugins"; // Auto-Registration aller Plugins
+import {
+	getAggregatedInteractiveLayerIds,
+	getAggregatedOverlays,
+	getAggregatedTocItems,
+} from "@/app/map/plugins/plugin-registry";
 
 export const MAP_CONFIG = {
-	overlays: DEMO_OVERLAYS,
-	tocItems: DEMO_TOC_ITEMS,
-	interactiveLayerIds: DEMO_INTERACTIVE_LAYER_IDS,
+	overlays: getAggregatedOverlays(),
+	tocItems: getAggregatedTocItems(),
+	interactiveLayerIds: getAggregatedInteractiveLayerIds(),
 } as const;

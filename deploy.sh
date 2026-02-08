@@ -3,7 +3,7 @@ set -euo pipefail
 
 echo "🚀 Starte Deployment für WebGIS-Demo..."
 
-cd /home/ubuntu/projects/demo-webgis
+cd /home/ubuntu/projects/webgis-demo
 
 # NVM laden (falls vorhanden)
 export NVM_DIR="$HOME/.nvm"

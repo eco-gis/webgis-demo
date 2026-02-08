@@ -8,7 +8,7 @@ import { useIsMobile } from "@/app/hooks/use-mobile";
 import { POPUP_CONFIG, type PopupLayerConfig } from "@/app/map/config/popup-config";
 import type { TocItemConfig } from "@/app/map/features/toc/toc-types";
 import type { PopupLayerGroup, PopupState } from "./types";
-import { WaldkauzPointPopup } from "./waldkauz-point-popup";
+import { getPopupRenderer } from "./popup-registry";
 
 type PropsRecord = Record<string, unknown>;
 
@@ -206,14 +206,17 @@ function PopupBody({ groups, tocItems }: { groups: readonly PopupLayerGroup[]; t
 								const props: PropsRecord = isRecord(f.properties) ? f.properties : {};
 								const label = featureLabel(f, cfg);
 
-								if (rawLayerId === "waldkauz-points") {
+								// 1. Check for custom popup renderer (from plugins)
+								const CustomRenderer = getPopupRenderer(rawLayerId) || getPopupRenderer(normalizedLayerId);
+								if (CustomRenderer) {
 									return (
 										<div key={featureKey} className="p-2.5">
-											<WaldkauzPointPopup feature={f} />
+											<CustomRenderer feature={f} layerId={rawLayerId} />
 										</div>
 									);
 								}
 
+								// 2. Use config-based renderer
 								if (cfg) {
 									return (
 										<div key={featureKey} className="p-2.5">
@@ -225,6 +228,7 @@ function PopupBody({ groups, tocItems }: { groups: readonly PopupLayerGroup[]; t
 									);
 								}
 
+								// 3. Fallback: No config found
 								return (
 									<div key={featureKey} className="p-2.5 text-xs text-muted-foreground">
 										Kei Popup-Config für {rawLayerId}
