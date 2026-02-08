@@ -39,4 +39,16 @@ export const APP_CONFIG = {
 	twitterDescription:
 		process.env.NEXT_PUBLIC_TWITTER_DESCRIPTION ||
 		"Interaktive WebGIS-Demo von eco|gis. Referenz für moderne, schlanke Kartenanwendungen.",
+
+	/** Map-Konfiguration */
+	map: {
+		/** Standard-Kartenzentrum [lon, lat] */
+		center: process.env.NEXT_PUBLIC_MAP_CENTER || "8.64,47.695",
+
+		/** Standard-Zoom-Level */
+		zoom: process.env.NEXT_PUBLIC_MAP_ZOOM || "12",
+
+		/** MapTiler Style URL (für Custom Styles) */
+		waldkauzStyleUrl: process.env.NEXT_PUBLIC_WALDKAUZ_STYLE_URL || null,
+	},
 } as const;

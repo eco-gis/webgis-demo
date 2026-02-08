@@ -135,13 +135,30 @@ npm run start
 
 ### App-Metadaten
 
+Konfiguriere die Anwendung über Umgebungsvariablen in `.env.local`:
+
 ```bash
-# .env.local
+# App-Konfiguration
 NEXT_PUBLIC_APP_TITLE="Mein WebGIS"
 NEXT_PUBLIC_APP_SUBTITLE="Projektgebiet"
+NEXT_PUBLIC_APP_DESCRIPTION="Beschreibung für SEO"
 NEXT_PUBLIC_BASE_URL="https://my-webgis.com"
+NEXT_PUBLIC_LOCALE="de_CH"
+
+# MapTiler API
 NEXT_PUBLIC_MAPTILER_KEY="your-api-key"
+NEXT_PUBLIC_WALDKAUZ_STYLE_URL=""  # Optional: Custom Style
+
+# Map-Defaults
+NEXT_PUBLIC_MAP_CENTER="8.64,47.695"  # lon,lat
+NEXT_PUBLIC_MAP_ZOOM="12"
+
+# OpenGraph/Twitter (optional, falls abweichend)
+# NEXT_PUBLIC_OG_TITLE=""
+# NEXT_PUBLIC_TWITTER_TITLE=""
 ```
+
+**Siehe:** [.env.example](.env.example) für alle verfügbaren Variablen
 
 ### Plugins aktivieren/deaktivieren
 

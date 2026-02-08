@@ -5,6 +5,7 @@ import type { Map as MapLibreMap } from "maplibre-gl";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AppShell } from "@/app/components/shell/app-shell";
+import { APP_CONFIG } from "@/app/config/app-config";
 
 import { BasemapControl } from "@/app/map/basemaps/basemap-control";
 import { useBasemapStore } from "@/app/map/basemaps/basemap-store";
@@ -144,8 +145,8 @@ export function MapContainer() {
 	}, []);
 
 	// Env defaults (stable)
-	const envCenter = useMemo(() => parseCenter(process.env.NEXT_PUBLIC_MAP_CENTER), []);
-	const envZoom = useMemo(() => parseZoom(process.env.NEXT_PUBLIC_MAP_ZOOM), []);
+	const envCenter = useMemo(() => parseCenter(APP_CONFIG.map.center), []);
+	const envZoom = useMemo(() => parseZoom(APP_CONFIG.map.zoom), []);
 
 	// Initial view for map creation (URL overrides env)
 	const initialCenter = useMemo<[number, number]>(() => {
