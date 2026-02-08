@@ -2,6 +2,7 @@
 
 import type { TocItemConfig } from "@/app/map/features/toc/toc-types";
 import type { OverlayRegistry } from "@/app/map/overlays/overlay-definition";
+import type { MapGeoJSONFeature } from "maplibre-gl";
 import type { FC } from "react";
 
 /**
@@ -65,8 +66,8 @@ export interface MapPlugin {
  * Props für Plugin Popup-Renderer
  */
 export interface PopupRendererProps {
-	/** GeoJSON Feature */
-	feature: GeoJSON.Feature;
+	/** MapLibre GeoJSON Feature */
+	feature: MapGeoJSONFeature;
 
 	/** Layer-ID */
 	layerId?: string;

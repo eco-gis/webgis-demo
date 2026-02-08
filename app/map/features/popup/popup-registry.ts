@@ -1,14 +1,15 @@
 // app/map/features/popup/popup-registry.ts
 "use client";
 
+import type { MapGeoJSONFeature } from "maplibre-gl";
 import type { FC } from "react";
 
 /**
  * Props für Popup-Renderer
  */
 export interface PopupRendererProps {
-	/** GeoJSON Feature */
-	feature: GeoJSON.Feature;
+	/** MapLibre GeoJSON Feature */
+	feature: MapGeoJSONFeature;
 
 	/** Layer-ID (optional) */
 	layerId?: string;

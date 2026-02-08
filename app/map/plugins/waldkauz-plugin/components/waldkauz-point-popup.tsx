@@ -1,13 +1,13 @@
 // app/map/plugins/waldkauz-plugin/components/waldkauz-point-popup.tsx
 "use client";
 
-import type * as maplibregl from "maplibre-gl";
+import type { MapGeoJSONFeature } from "maplibre-gl";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/app/components/ui/tabs";
 import { AudioPlayer } from "./waldkauz/audio-player";
 import { PresenceChart, usePresenceFiles } from "./waldkauz/presence-chart";
 import { getStringProp } from "./waldkauz/types";
 
-export function WaldkauzPointPopup({ feature }: { feature: maplibregl.MapGeoJSONFeature }) {
+export function WaldkauzPointPopup({ feature }: { feature: MapGeoJSONFeature }) {
 	const location = getStringProp(feature, "location") ?? "Unbekannt";
 	const locationId = getStringProp(feature, "location_id");
 
